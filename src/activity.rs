@@ -233,10 +233,10 @@ impl Diagram for Activity {
             }
         }
 
-        let mut dot = format!("    ranksep = {}\r\n", 0.5);
-        dot.write_fmt(format_args!("    rankdir = {}\r\n", options.dir))?;
+        let mut dot = format!("    ranksep = {}\n", 0.5);
+        dot.write_fmt(format_args!("    rankdir = {}\n", options.dir))?;
         dot.write_str(&serialize_dot_elements(elements)?)?;
-        dot.write_str("}\r\n")?;
+        dot.write_str("}\n")?;
 
         Ok(dot)
     }

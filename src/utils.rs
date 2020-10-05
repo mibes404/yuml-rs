@@ -149,14 +149,14 @@ pub fn serialize_dot_elements(mut elements: Vec<NodeOrEdge>) -> YumlResult<Strin
         match elem {
             NodeOrEdge::Node(uid, node) => {
                 let _ = dot.write_fmt(format_args!(
-                    "    {} {}\r\n",
+                    "    {} {}\n",
                     uid.clone(),
                     serialize_dot(NodeOrEdge::Node(uid, node))?
                 ))?;
             }
             NodeOrEdge::Edge(uid1, uid2, edge) => {
                 let _ = dot.write_fmt(format_args!(
-                    "    {} -> {} {}\r\n",
+                    "    {} -> {} {}\n",
                     uid1.clone(),
                     uid2.clone(),
                     serialize_dot(NodeOrEdge::Edge(uid1, uid2, edge))?
