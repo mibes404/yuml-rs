@@ -9,12 +9,7 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8319d834-994f-4360-beae-3befdefc75e6" name="Default Changelist" comment="Builds activity diagram">
-      <change afterPath="$PROJECT_DIR$/src/utils.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/activity.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/activity.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-    </list>
+    <list default="true" id="8319d834-994f-4360-beae-3befdefc75e6" name="Default Changelist" comment="Clean-up" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -71,12 +66,7 @@
       <command value="cargo clippy" />
     </option>
   </component>
-  <component name="RunManager" selected="Cargo.Run yuml-rs">
-    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" PASS_PARENT_ENVS_2="true">
-      <method v="2">
-        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-      </method>
-    </configuration>
+  <component name="RunManager" selected="Cargo.Test utils::tests">
     <configuration name="Run yuml-rs" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
       <option name="command" value="run --package yuml-rs --bin yuml-rs" />
@@ -89,9 +79,9 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test model" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+    <configuration name="Test activity::test_yuml_expression" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
-      <option name="command" value="test --package yuml-rs --bin yuml-rs model" />
+      <option name="command" value="test --package yuml-rs --bin yuml-rs activity::test_yuml_expression -- --exact" />
       <option name="allFeatures" value="false" />
       <option name="emulateTerminal" value="false" />
       <option name="backtrace" value="SHORT" />
@@ -101,9 +91,9 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test tests::test_split_yuml_expr" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+    <configuration name="Test utils::tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
-      <option name="command" value="test --package yuml-rs --bin yuml-rs tests::test_split_yuml_expr -- --exact" />
+      <option name="command" value="test --package yuml-rs --bin yuml-rs utils::tests" />
       <option name="allFeatures" value="false" />
       <option name="emulateTerminal" value="false" />
       <option name="backtrace" value="SHORT" />
@@ -113,9 +103,9 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test tests::test_yuml_expression" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+    <configuration name="Test utils::tests::test_luma" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
-      <option name="command" value="test --package yuml-rs --bin yuml-rs tests::test_yuml_expression -- --exact" />
+      <option name="command" value="test --package yuml-rs --bin yuml-rs utils::tests::test_luma -- --exact" />
       <option name="allFeatures" value="false" />
       <option name="emulateTerminal" value="false" />
       <option name="backtrace" value="SHORT" />
@@ -137,12 +127,17 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <configuration default="true" type="GradleAppRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" PASS_PARENT_ENVS_2="true">
+      <method v="2">
+        <option name="com.jetbrains.cidr.cpp.gradle.execution.GradleNativeBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test utils::tests" />
+        <item itemvalue="Cargo.Test utils::tests::test_luma" />
+        <item itemvalue="Cargo.Test activity::test_yuml_expression" />
         <item itemvalue="Cargo.Run yuml-rs" />
-        <item itemvalue="Cargo.clippy" />
-        <item itemvalue="Cargo.clippy" />
-        <item itemvalue="Cargo.clippy" />
         <item itemvalue="Cargo.clippy" />
       </list>
     </recent_temporary>
@@ -162,7 +157,7 @@
       <option name="presentableId" value="Default" />
       <updated>1601706926332</updated>
       <workItem from="1601706927518" duration="41553000" />
-      <workItem from="1601885878985" duration="5663000" />
+      <workItem from="1601885878985" duration="5848000" />
     </task>
     <task id="LOCAL-00001" summary="Graphviz library">
       <created>1601710004586</created>
@@ -178,7 +173,14 @@
       <option name="project" value="LOCAL" />
       <updated>1601898627049</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Clean-up">
+      <created>1601899213535</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1601899213535</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -199,6 +201,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Graphviz library" />
     <MESSAGE value="Builds activity diagram" />
-    <option name="LAST_COMMIT_MESSAGE" value="Builds activity diagram" />
+    <MESSAGE value="Clean-up" />
+    <option name="LAST_COMMIT_MESSAGE" value="Clean-up" />
   </component>
 </project>

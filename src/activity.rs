@@ -302,3 +302,17 @@ impl Diagram for Activity {
         expressions.try_collect()
     }
 }
+
+#[test]
+fn test_yuml_expression() {
+    let activity = Activity {};
+    let expression = activity
+        .parse_yuml_expr("<a>[kettle empty]->(Fill Kettle)->|b|")
+        .expect("can not parse");
+    assert_eq!(expression.len(), 5);
+    let str_ex = expression.iter().map(|expr| expr.to_string()).join(" | ");
+    assert_eq!(
+        str_ex,
+        "a: diamond | [kettle empty]: edge | Fill Kettle: record | : edge | b: mrecord"
+    );
+}

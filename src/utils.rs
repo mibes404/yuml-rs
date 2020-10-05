@@ -308,3 +308,37 @@ pub fn split_yuml_expr(line: &str, separators: &str, escape: Option<char>) -> Yu
 
     Ok(parts)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_yuml_expr() {
+        let parts = split_yuml_expr("<a>[kettle empty]->(Fill Kettle)->|b|", "(<|", None).expect("can not parse");
+        assert_eq!(parts.len(), 5);
+        let part = parts.get(0).unwrap();
+        assert_eq!(part, "<a>");
+        let part = parts.get(1).unwrap();
+        assert_eq!(part, "[kettle empty]->");
+        let part = parts.get(2).unwrap();
+        assert_eq!(part, "(Fill Kettle)");
+    }
+
+    #[test]
+    fn test_luma() {
+        let luma = get_luma("#102030");
+        let expected = 0.2126 * (0x10 as f64) + 0.7152 * (0x20 as f64) + 0.0722 * (0x30 as f64);
+        assert_eq!(luma, expected);
+
+        let luma = get_luma("PaleVioletRed3");
+        let expected = 0.2126 * 205.0 + 0.7152 * 104.0 + 0.0722 * 137.0;
+        assert_eq!(luma, expected);
+    }
+
+    #[test]
+    fn test_escape_label() {
+        let escaped = escape_label("{hello}");
+        assert_eq!(escaped, r"\\{hello\\}")
+    }
+}
