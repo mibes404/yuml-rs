@@ -9,18 +9,11 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8319d834-994f-4360-beae-3befdefc75e6" name="Default Changelist" comment="Graphviz library">
-      <change afterPath="$PROJECT_DIR$/rustfmt.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/activity.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/diagram.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/error.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/rgb.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/sample_dot.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/test.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/graphviz/ABOUT" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/graphviz/gvc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/graphviz/mod.rs" beforeDir="false" />
+    <list default="true" id="8319d834-994f-4360-beae-3befdefc75e6" name="Default Changelist" comment="Builds activity diagram">
+      <change afterPath="$PROJECT_DIR$/src/utils.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/activity.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/activity.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -78,7 +71,7 @@
       <command value="cargo clippy" />
     </option>
   </component>
-  <component name="RunManager" selected="Cargo.clippy">
+  <component name="RunManager" selected="Cargo.Run yuml-rs">
     <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" PASS_PARENT_ENVS_2="true">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
@@ -146,7 +139,7 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Cargo.clippy" />
+        <item itemvalue="Cargo.Run yuml-rs" />
         <item itemvalue="Cargo.clippy" />
         <item itemvalue="Cargo.clippy" />
         <item itemvalue="Cargo.clippy" />
@@ -169,7 +162,7 @@
       <option name="presentableId" value="Default" />
       <updated>1601706926332</updated>
       <workItem from="1601706927518" duration="41553000" />
-      <workItem from="1601885878985" duration="5124000" />
+      <workItem from="1601885878985" duration="5663000" />
     </task>
     <task id="LOCAL-00001" summary="Graphviz library">
       <created>1601710004586</created>
@@ -178,7 +171,14 @@
       <option name="project" value="LOCAL" />
       <updated>1601710004586</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Builds activity diagram">
+      <created>1601898627049</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1601898627049</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -198,6 +198,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Graphviz library" />
-    <option name="LAST_COMMIT_MESSAGE" value="Graphviz library" />
+    <MESSAGE value="Builds activity diagram" />
+    <option name="LAST_COMMIT_MESSAGE" value="Builds activity diagram" />
   </component>
 </project>

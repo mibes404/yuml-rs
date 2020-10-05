@@ -14,8 +14,9 @@
 use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
 use crate::model::{Directions, Edge, Node, NodeOrEdge, Options, YumlExpression, YumlProps};
-use crate::EMPTY;
-use crate::{add_bar_facet, escape_label, extract_bg_and_note, record_name, serialize_dot_elements, split_yuml_expr};
+use crate::utils::{
+    add_bar_facet, escape_label, extract_bg_and_note, record_name, serialize_dot_elements, split_yuml_expr, EMPTY,
+};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
