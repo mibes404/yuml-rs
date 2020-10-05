@@ -10,6 +10,8 @@ use crate::error::{OptionsError, YumlResult};
 use crate::model::{ChartType, Directions, Options};
 use crate::utils::{build_dot_header, process_directives};
 use itertools::Itertools;
+use std::io::{Read, Write};
+use std::process::{Command, Stdio};
 
 fn process_yuml_document(text: &str, is_dark: bool) -> YumlResult<String> {
     let mut options = Options {
@@ -75,10 +77,38 @@ fn main() {
     (Pour Water)->(end)
 "#;
 
-    match process_yuml_document(text, false) {
-        Ok(dot) => println!("{}", dot),
-        Err(err) => println!("{}", err),
-    }
+    let dot = match process_yuml_document(text, false) {
+        Ok(dot) => dot,
+        Err(err) => {
+            println!("{}", err);
+            return;
+        }
+    };
 
+    render_svg(dot)
+}
+
+fn render_svg(dot: String) {
     // dot -Tsvg sample_dot.txt
+    let dot_process = Command::new("dot")
+        .arg("-Tsvg")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("failed to execute process");
+
+    dot_process
+        .stdin
+        .unwrap()
+        .write_all(dot.as_bytes())
+        .expect("can not stream to dot process");
+
+    let mut output = String::new();
+    dot_process
+        .stdout
+        .unwrap()
+        .read_to_string(&mut output)
+        .expect("can not read from dot process");
+
+    println!("{}", output)
 }
