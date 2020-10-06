@@ -112,7 +112,65 @@ pub enum YumlProps {
     NoteOrRecord(bool, String, String),
     Diamond,
     MRecord,
-    Edge(String, String, String),
+    Edge(EdgeProps),
+}
+
+#[derive(PartialEq)]
+pub struct EdgeProps {
+    pub arrowtail: Option<Arrow>,
+    pub arrowhead: Option<Arrow>,
+    pub taillabel: Option<String>,
+    pub headlabel: Option<String>,
+    pub style: Style,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum Arrow {
+    Vee,
+    ODiamond,
+    Diamond,
+    Empty,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum Style {
+    Solid,
+    Dashed,
+}
+
+impl EdgeProps {
+    pub fn arrowtail_str(&self) -> String {
+        self.arrowtail
+            .as_ref()
+            .map(|a| a.to_string())
+            .unwrap_or_else(|| "none".to_string())
+    }
+    pub fn arrowhead_str(&self) -> String {
+        self.arrowhead
+            .as_ref()
+            .map(|a| a.to_string())
+            .unwrap_or_else(|| "none".to_string())
+    }
+}
+
+impl Display for Arrow {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arrow::Vee => f.write_str("vee"),
+            Arrow::Empty => f.write_str("empty"),
+            Arrow::ODiamond => f.write_str("odiamond"),
+            Arrow::Diamond => f.write_str("diamond"),
+        }
+    }
+}
+
+impl Display for Style {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Style::Solid => f.write_str("solid"),
+            Style::Dashed => f.write_str("dashed"),
+        }
+    }
 }
 
 pub struct YumlExpression {
@@ -134,7 +192,20 @@ impl Display for YumlExpression {
             }
             YumlProps::Diamond => f.write_str("diamond"),
             YumlProps::MRecord => f.write_str("mrecord"),
-            YumlProps::Edge(_, _, _) => f.write_str("edge"),
+            YumlProps::Edge(_) => f.write_str("edge"),
+        }
+    }
+}
+
+impl From<BgAndNote> for YumlExpression {
+    fn from(ret: BgAndNote) -> Self {
+        YumlExpression {
+            id: ret.part,
+            props: YumlProps::NoteOrRecord(
+                ret.is_note,
+                ret.bg.unwrap_or_default(),
+                ret.font_color.unwrap_or_default(),
+            ),
         }
     }
 }

@@ -1,4 +1,5 @@
 mod activity;
+mod classdiagram;
 mod diagram;
 mod error;
 mod model;

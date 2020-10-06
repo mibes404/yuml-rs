@@ -13,7 +13,7 @@
 
 use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
-use crate::model::{Directions, Edge, Node, NodeOrEdge, Options, YumlExpression, YumlProps};
+use crate::model::{Arrow, Directions, Edge, EdgeProps, Node, NodeOrEdge, Options, Style, YumlExpression, YumlProps};
 use crate::utils::{
     add_bar_facet, escape_label, extract_bg_and_note, record_name, serialize_dot_elements, split_yuml_expr, EMPTY,
 };
@@ -95,7 +95,7 @@ impl Diagram for Activity {
 
                         elements.push(NodeOrEdge::Node(uid, node));
                     }
-                    YumlProps::Edge(_, _, _) => {
+                    YumlProps::Edge(_) => {
                         // ignore for now
                     }
                     YumlProps::NoteOrRecord(is_note, fillcolor, fontcolor) => {
@@ -107,7 +107,7 @@ impl Diagram for Activity {
                         let uid = format!("A{}", len);
                         uids.insert(record_name(label).to_string(), uid.clone());
 
-                        let node = if !is_note && (label == "start" || label == "end") {
+                        let node = if !*is_note && (label == "start" || label == "end") {
                             Node {
                                 shape: if label == "start" {
                                     "circle".to_string()
@@ -160,20 +160,20 @@ impl Diagram for Activity {
             }
 
             for range in expression.windows(3) {
-                let previous_is_edge = if let Some(YumlProps::Edge(_, _, _)) = range.get(0).map(|c| &c.props) {
+                let previous_is_edge = if let Some(YumlProps::Edge(_)) = range.get(0).map(|c| &c.props) {
                     true
                 } else {
                     false
                 };
 
-                let next_is_edge = if let Some(YumlProps::Edge(_, _, _)) = range.get(2).map(|c| &c.props) {
+                let next_is_edge = if let Some(YumlProps::Edge(_)) = range.get(2).map(|c| &c.props) {
                     true
                 } else {
                     false
                 };
 
                 if !previous_is_edge && !next_is_edge {
-                    if let Some(YumlProps::Edge(arrowtail, arrowhead, style)) = range.get(1).map(|c| &c.props) {
+                    if let Some(YumlProps::Edge(props)) = range.get(1).map(|c| &c.props) {
                         let label = &range.get(1).unwrap().id;
                         let previous_is_note =
                             if let Some(YumlProps::NoteOrRecord(is_note, _, _)) = range.get(0).map(|c| &c.props) {
@@ -190,17 +190,17 @@ impl Diagram for Activity {
                             };
 
                         let style = if previous_is_note || next_is_note {
-                            "dashed"
+                            Style::Dashed
                         } else {
-                            &style
+                            props.style.clone()
                         };
 
                         let mut edge = Edge {
                             shape: "edge".to_string(),
                             dir: "both".to_string(),
                             style: style.to_string(),
-                            arrowtail: arrowtail.to_string(),
-                            arrowhead: arrowhead.to_string(),
+                            arrowtail: props.arrowtail_str(),
+                            arrowhead: props.arrowhead_str(),
                             labeldistance: 1,
                             fontsize: 10,
                             label: None,
@@ -252,14 +252,7 @@ impl Diagram for Activity {
                 let a_str = actvity.as_str();
                 let part = &a_str[1..a_str.len() - 1];
                 let ret = extract_bg_and_note(part, true);
-                return Some(Ok(YumlExpression {
-                    id: ret.part,
-                    props: YumlProps::NoteOrRecord(
-                        ret.is_note,
-                        ret.bg.unwrap_or_default(),
-                        ret.font_color.unwrap_or_default(),
-                    ),
-                }));
+                return Some(Ok(YumlExpression::from(ret)));
             }
 
             if let Some(decision) = R_DECISION.find(&part) {
@@ -285,14 +278,26 @@ impl Diagram for Activity {
                 let part = &a_str[..a_str.len() - 2].trim();
                 return Some(Ok(YumlExpression {
                     id: part.to_string(),
-                    props: YumlProps::Edge("none".to_string(), "vee".to_string(), "solid".to_string()),
+                    props: YumlProps::Edge(EdgeProps {
+                        arrowtail: None,
+                        arrowhead: Some(Arrow::Vee),
+                        taillabel: None,
+                        headlabel: None,
+                        style: Style::Solid,
+                    }),
                 }));
             }
 
             if part == "-" {
                 return Some(Ok(YumlExpression {
                     id: String::new(),
-                    props: YumlProps::Edge("none".to_string(), "none".to_string(), "solid".to_string()),
+                    props: YumlProps::Edge(EdgeProps {
+                        arrowtail: None,
+                        arrowhead: None,
+                        taillabel: None,
+                        headlabel: None,
+                        style: Style::Solid,
+                    }),
                 }));
             }
 
