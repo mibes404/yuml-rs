@@ -1,4 +1,5 @@
 use crate::error::{OptionsError, YumlError};
+use itertools::Itertools;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
@@ -102,9 +103,74 @@ pub struct Options {
     pub chart_type: Option<ChartType>,
 }
 
-pub enum NodeOrEdge {
-    Node(String, Node),
-    Edge(String, String, Edge),
+#[derive(PartialEq)]
+pub enum DotShape {
+    Record,
+    Circle,
+    DoubleCircle,
+    Diamond,
+    Note,
+    Edge,
+    Point,
+    Rectangle,
+}
+
+impl Display for DotShape {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DotShape::Record => f.write_str("record"),
+            DotShape::Circle => f.write_str("circle"),
+            DotShape::DoubleCircle => f.write_str("doublecircle"),
+            DotShape::Diamond => f.write_str("diamond"),
+            DotShape::Note => f.write_str("note"),
+            DotShape::Edge => f.write_str("edge"),
+            DotShape::Point => f.write_str("point"),
+            DotShape::Rectangle => f.write_str("rectangle"),
+        }
+    }
+}
+
+pub struct Dot {
+    pub shape: DotShape,
+    pub height: Option<f32>,
+    pub width: Option<f32>,
+    pub margin: Option<String>,
+    pub label: Option<String>,
+    pub fontsize: Option<i32>,
+    pub style: Vec<Style>,
+    pub fillcolor: Option<String>,
+    pub fontcolor: Option<String>,
+    pub penwidth: Option<i32>,
+    pub dir: Option<String>,
+    pub arrowtail: Option<Arrow>,
+    pub arrowhead: Option<Arrow>,
+    pub taillabel: Option<String>,
+    pub headlabel: Option<String>,
+    pub labeldistance: Option<u32>,
+}
+
+pub struct Element {
+    pub uid: String,
+    pub uid2: Option<String>,
+    pub dot: Dot,
+}
+
+impl Element {
+    pub fn new(uid: &str, dot: Dot) -> Self {
+        Element {
+            uid: uid.to_string(),
+            uid2: None,
+            dot,
+        }
+    }
+
+    pub fn new_edge(uid: &str, uid2: &str, dot: Dot) -> Self {
+        Element {
+            uid: uid.to_string(),
+            uid2: Some(uid2.to_string()),
+            dot,
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -113,6 +179,16 @@ pub enum YumlProps {
     Diamond,
     MRecord,
     Edge(EdgeProps),
+}
+
+impl YumlProps {
+    pub fn note_or_record_shape(is_note: bool) -> DotShape {
+        if is_note {
+            DotShape::Note
+        } else {
+            DotShape::Record
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -136,21 +212,9 @@ pub enum Arrow {
 pub enum Style {
     Solid,
     Dashed,
-}
-
-impl EdgeProps {
-    pub fn arrowtail_str(&self) -> String {
-        self.arrowtail
-            .as_ref()
-            .map(|a| a.to_string())
-            .unwrap_or_else(|| "none".to_string())
-    }
-    pub fn arrowhead_str(&self) -> String {
-        self.arrowhead
-            .as_ref()
-            .map(|a| a.to_string())
-            .unwrap_or_else(|| "none".to_string())
-    }
+    Filled,
+    Rounded,
+    Invis,
 }
 
 impl Display for Arrow {
@@ -169,18 +233,21 @@ impl Display for Style {
         match self {
             Style::Solid => f.write_str("solid"),
             Style::Dashed => f.write_str("dashed"),
+            Style::Filled => f.write_str("filled"),
+            Style::Rounded => f.write_str("rounded"),
+            Style::Invis => f.write_str("invis"),
         }
     }
 }
 
 pub struct YumlExpression {
-    pub id: String,
+    pub label: String,
     pub props: YumlProps,
 }
 
 impl Display for YumlExpression {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.id)?;
+        f.write_str(&self.label)?;
         f.write_str(": ")?;
         match self.props {
             YumlProps::NoteOrRecord(is_note, _, _) => {
@@ -200,7 +267,7 @@ impl Display for YumlExpression {
 impl From<BgAndNote> for YumlExpression {
     fn from(ret: BgAndNote) -> Self {
         YumlExpression {
-            id: ret.part,
+            label: ret.part,
             props: YumlProps::NoteOrRecord(
                 ret.is_note,
                 ret.bg.unwrap_or_default(),
@@ -210,31 +277,26 @@ impl From<BgAndNote> for YumlExpression {
     }
 }
 
-pub struct Node {
-    pub shape: String,
-    pub height: f32,
-    pub width: f32,
-    pub margin: String,
-    pub label: Option<String>,
-    pub fontsize: Option<i32>,
-    pub style: String,
-    pub fillcolor: Option<String>,
-    pub fontcolor: Option<String>,
-    pub penwidth: Option<i32>,
-}
-
-impl Display for Node {
+impl Display for Dot {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("[")?;
 
         // strings
         f.write_fmt(format_args!(r#"shape="{}" , "#, self.shape))?;
-        f.write_fmt(format_args!(r#"margin="{}" , "#, self.margin))?;
+        if let Some(margin) = &self.margin {
+            f.write_fmt(format_args!(r#"margin="{}" , "#, margin))?;
+        }
+
         f.write_fmt(format_args!(
             r#"label="{}" , "#,
             self.label.as_deref().unwrap_or_default()
         ))?;
-        f.write_fmt(format_args!(r#"style="{}" , "#, self.style))?;
+
+        f.write_fmt(format_args!(
+            r#"style="{}" , "#,
+            self.style.iter().map(Style::to_string).join(",")
+        ))?;
+
         if let Some(fillcolor) = &self.fillcolor {
             f.write_fmt(format_args!(r#"fillcolor="{}" , "#, fillcolor))?;
         }
@@ -242,9 +304,41 @@ impl Display for Node {
             f.write_fmt(format_args!(r#"fontcolor="{}" , "#, fontcolor))?;
         }
 
+        if let Some(dir) = &self.dir {
+            f.write_fmt(format_args!(r#"dir="{}" , "#, dir))?;
+        }
+
+        if let Some(arrowtail) = &self.arrowtail {
+            f.write_fmt(format_args!(r#"arrowtail="{}" , "#, arrowtail))?;
+        } else {
+            f.write_fmt(format_args!(r#"arrowtail="none" , "#))?;
+        }
+
+        if let Some(arrowhead) = &self.arrowhead {
+            f.write_fmt(format_args!(r#"arrowhead="{}" , "#, arrowhead))?;
+        } else {
+            f.write_fmt(format_args!(r#"arrowhead="none" , "#))?;
+        }
+
+        if let Some(taillabel) = &self.taillabel {
+            f.write_fmt(format_args!(r#"taillabel="{}" , "#, taillabel))?;
+        }
+        if let Some(headlabel) = &self.headlabel {
+            f.write_fmt(format_args!(r#"headlabel="{}" , "#, headlabel))?;
+        }
+
         // non-strings
-        f.write_fmt(format_args!("height={} , ", self.height))?;
-        f.write_fmt(format_args!("width={} , ", self.width))?;
+        if let Some(labeldistance) = &self.labeldistance {
+            f.write_fmt(format_args!("labeldistance={} , ", labeldistance))?;
+        }
+
+        if let Some(height) = &self.height {
+            f.write_fmt(format_args!("height={} , ", height))?;
+        }
+
+        if let Some(width) = &self.width {
+            f.write_fmt(format_args!("width={} , ", width))?;
+        }
         if let Some(fontsize) = &self.fontsize {
             f.write_fmt(format_args!("fontsize={} , ", fontsize))?;
         }
@@ -256,62 +350,35 @@ impl Display for Node {
     }
 }
 
-pub struct Edge {
-    pub shape: String,
-    pub dir: String,
-    pub style: String,
-    pub arrowtail: String,
-    pub arrowhead: String,
-    pub labeldistance: u32,
-    pub fontsize: u32,
-    pub label: Option<String>,
-}
-
-impl Display for Edge {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("[")?;
-
-        // strings
-        f.write_fmt(format_args!(r#"shape="{}" , "#, self.shape))?;
-        f.write_fmt(format_args!(r#"dir="{}" , "#, self.dir))?;
-        f.write_fmt(format_args!(r#"style="{}" , "#, self.style))?;
-        f.write_fmt(format_args!(r#"arrowtail="{}" , "#, self.arrowtail))?;
-        f.write_fmt(format_args!(r#"arrowhead="{}" , "#, self.arrowhead))?;
-        f.write_fmt(format_args!(
-            r#"label="{}" , "#,
-            self.label.as_deref().unwrap_or_default()
-        ))?;
-
-        // non-strings
-        f.write_fmt(format_args!("labeldistance={} , ", self.labeldistance))?;
-        f.write_fmt(format_args!("fontsize={} , ", self.fontsize))?;
-        f.write_str("]")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_display_node() {
-        let node = Node {
-            shape: "s".to_string(),
-            height: 1.0,
-            width: 2.0,
-            margin: "m".to_string(),
+        let node = Dot {
+            shape: DotShape::Note,
+            height: Some(1.0),
+            width: Some(2.0),
+            margin: Some("m".to_string()),
             label: Some("l".to_string()),
             fontsize: Some(3),
-            style: "s".to_string(),
+            style: vec![Style::Solid],
             fillcolor: None,
             fontcolor: Some("fc".to_string()),
             penwidth: None,
+            dir: None,
+            arrowtail: None,
+            arrowhead: None,
+            taillabel: None,
+            headlabel: None,
+            labeldistance: None,
         }
         .to_string();
 
         assert_eq!(
             node,
-            r#"[shape="s" , margin="m" , label="l" , style="s" , fontcolor="fc" , height=1 , width=2 , fontsize=3 , ]"#
+            r#"[shape="note" , margin="m" , label="l" , style="solid" , fontcolor="fc" , arrowtail="none" , arrowhead="none" , height=1 , width=2 , fontsize=3 , ]"#
         );
     }
 }

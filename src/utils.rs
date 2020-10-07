@@ -1,5 +1,5 @@
 use crate::error::{OptionsError, YumlResult};
-use crate::model::{BgAndNote, NodeOrEdge, Options};
+use crate::model::{BgAndNote, Dot, DotShape, Element, Options};
 use crate::rgb::COLOR_TABLE;
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -83,56 +83,49 @@ pub fn record_name(label: &str) -> &str {
     label.split('|').next().map(|l| l.trim()).unwrap_or_default()
 }
 
-pub fn serialize_dot(node_or_edge: NodeOrEdge) -> YumlResult<String> {
-    match node_or_edge {
-        NodeOrEdge::Node(_, mut node) => {
-            let label = node.label.clone().unwrap_or_default();
-            if node.shape == "record" && !R_LABEL.is_match(&label) {
-                // Graphviz documentation says (https://www.graphviz.org/doc/info/shapes.html):
-                // The record-based shape has largely been superseded and greatly generalized by HTML-like labels.
-                // That is, instead of using shape=record, one might consider using shape=none, margin=0 and an HTML-like label. [...]
-                // Also note that there are problems using non-trivial edges (edges with ports or labels) between adjacent nodes
-                // on the same rank if one or both nodes has a record shape.
+pub fn serialize_dot(mut dot: Dot) -> YumlResult<String> {
+    let label = dot.label.clone().unwrap_or_default();
+    if dot.shape == DotShape::Record && !R_LABEL.is_match(&label) {
+        // Graphviz documentation says (https://www.graphviz.org/doc/info/shapes.html):
+        // The record-based shape has largely been superseded and greatly generalized by HTML-like labels.
+        // That is, instead of using shape=record, one might consider using shape=none, margin=0 and an HTML-like label. [...]
+        // Also note that there are problems using non-trivial edges (edges with ports or labels) between adjacent nodes
+        // on the same rank if one or both nodes has a record shape.
 
-                if label.contains('|') {
-                    let mut result =
-                        r#"[fontsize=10,label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9" "#
-                            .to_string();
-                    if let Some(fillcolor) = &node.fillcolor {
-                        result.write_fmt(format_args!(r#"BGCOLOR="{}" "#, fillcolor))?;
-                    }
-                    if let Some(fontcolor) = &node.fontcolor {
-                        result.write_fmt(format_args!(r#"COLOR="{}" "#, fontcolor))?;
-                    }
-
-                    result.write_str(">")?;
-                    result.write_str(
-                        &label
-                            .split('|')
-                            .map(|t| {
-                                let text = unescape_label(t);
-                                let html_text: String = text
-                                    .chars()
-                                    .map(|c| ESCAPED_CHARS.get(&c).unwrap_or(&c.to_string()).to_string())
-                                    .join("");
-                                format!("<TR><TD>{}</TD></TR>", html_text)
-                            })
-                            .join(""),
-                    )?;
-
-                    result.write_str("</TABLE>>]")?;
-                    return Ok(result);
-                }
-
-                // To avoid this issue, we can use a "rectangle" shape
-                node.shape = "rectangle".to_string();
+        if label.contains('|') {
+            let mut result =
+                r#"[fontsize=10,label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9" "#.to_string();
+            if let Some(fillcolor) = &dot.fillcolor {
+                result.write_fmt(format_args!(r#"BGCOLOR="{}" "#, fillcolor))?;
+            }
+            if let Some(fontcolor) = &dot.fontcolor {
+                result.write_fmt(format_args!(r#"COLOR="{}" "#, fontcolor))?;
             }
 
-            Ok(node.to_string())
+            result.write_str(">")?;
+            result.write_str(
+                &label
+                    .split('|')
+                    .map(|t| {
+                        let text = unescape_label(t);
+                        let html_text: String = text
+                            .chars()
+                            .map(|c| ESCAPED_CHARS.get(&c).unwrap_or(&c.to_string()).to_string())
+                            .join("");
+                        format!("<TR><TD>{}</TD></TR>", html_text)
+                    })
+                    .join(""),
+            )?;
+
+            result.write_str("</TABLE>>]")?;
+            return Ok(result);
         }
 
-        NodeOrEdge::Edge(_, _, edge) => Ok(edge.to_string()),
+        // To avoid this issue, we can use a "rectangle" shape
+        dot.shape = DotShape::Rectangle
     }
+
+    Ok(dot.to_string())
 }
 
 pub fn unescape_label(label: &str) -> String {
@@ -143,46 +136,63 @@ pub fn unescape_label(label: &str) -> String {
         .replace(r"\\>", ">")
 }
 
-pub fn serialize_dot_elements(mut elements: Vec<NodeOrEdge>) -> YumlResult<String> {
+pub fn format_label(label: &str, wrap: usize, allow_divisors: bool) -> String {
+    let mut lines: Vec<&str> = vec![label];
+    if allow_divisors && label.contains('|') {
+        lines = label.split('|').collect();
+    }
+
+    let lines: Vec<String> = lines.iter().map(|line| word_wrap(line, wrap, '\n')).collect();
+    escape_label(&lines.join("|"))
+}
+
+fn word_wrap(line: &str, width: usize, new_line: char) -> String {
+    if line.len() < width {
+        return line.to_string();
+    }
+
+    if let Some(p) = line.rfind(' ') {
+        if p > 0 {
+            let left = &line[0..p];
+            let right = &line[p + 1..];
+            return format!("{}{}{}", left, new_line, word_wrap(right, width, new_line));
+        }
+    }
+
+    line.to_string()
+}
+
+pub fn serialize_dot_elements(mut elements: Vec<Element>) -> YumlResult<String> {
     let mut dot = String::new();
     while let Some(elem) = elements.pop() {
-        match elem {
-            NodeOrEdge::Node(uid, node) => {
-                let _ = dot.write_fmt(format_args!(
-                    "    {} {}\n",
-                    uid.clone(),
-                    serialize_dot(NodeOrEdge::Node(uid, node))?
-                ))?;
-            }
-            NodeOrEdge::Edge(uid1, uid2, edge) => {
-                let _ = dot.write_fmt(format_args!(
-                    "    {} -> {} {}\n",
-                    uid1.clone(),
-                    uid2.clone(),
-                    serialize_dot(NodeOrEdge::Edge(uid1, uid2, edge))?
-                ))?;
-            }
+        if let Some(uid2) = elem.uid2 {
+            dot.write_fmt(format_args!(
+                "    {} -> {} {}\n",
+                elem.uid.clone(),
+                uid2.clone(),
+                serialize_dot(elem.dot)?
+            ))?;
+        } else {
+            dot.write_fmt(format_args!("    {} {}\n", elem.uid.clone(), serialize_dot(elem.dot)?))?;
         }
     }
 
     Ok(dot)
 }
 
-pub fn add_bar_facet(elements: &mut [NodeOrEdge], name: &str) -> Option<String> {
+pub fn add_bar_facet(elements: &mut [Element], name: &str) -> Option<String> {
     for element in elements {
-        if let NodeOrEdge::Node(uid, node) = element {
-            if uid == name {
-                let mut facet_num = 1;
-
-                if let Some(label) = &node.label {
-                    facet_num = label.split('|').count() + 1;
-                    node.label = Some(format!("{}|<f{}>", label, facet_num));
-                } else {
-                    node.label = Some("<f1>".to_string());
-                }
-
-                return Some(format!("f{}", facet_num));
+        if element.uid == name {
+            let mut facet_num = 1;
+            let node = &mut element.dot;
+            if let Some(label) = &node.label {
+                facet_num = label.split('|').count() + 1;
+                node.label = Some(format!("{}|<f{}>", label, facet_num));
+            } else {
+                node.label = Some("<f1>".to_string());
             }
+
+            return Some(format!("f{}", facet_num));
         }
     }
 
@@ -340,5 +350,15 @@ mod tests {
     fn test_escape_label() {
         let escaped = escape_label("{hello}");
         assert_eq!(escaped, r"\\{hello\\}")
+    }
+
+    #[test]
+    fn test_word_wrap() {
+        let wrapped = word_wrap("Hello World!", 4, '\n');
+        assert_eq!(wrapped, "Hello\nWorld!");
+        let wrapped = word_wrap("Hello World!", 6, '\n');
+        assert_eq!(wrapped, "Hello\nWorld!");
+        let wrapped = word_wrap("Hello World!", 13, '\n');
+        assert_eq!(wrapped, "Hello World!");
     }
 }
