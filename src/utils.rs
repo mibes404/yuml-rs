@@ -1,5 +1,5 @@
 use crate::error::{OptionsError, YumlResult};
-use crate::model::{BgAndNote, Dot, DotShape, Element, Options};
+use crate::model::{BgAndNote, Dot, DotShape, Element, Options, YumlExpression};
 use crate::rgb::COLOR_TABLE;
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -16,6 +16,17 @@ lazy_static! {
     static ref R_LABEL: Regex = Regex::new(r"(?m)^<.+>(|<.+>)*$").unwrap();
     static ref ESCAPED_CHARS: HashMap<char, String> = build_escaped_chars();
     pub static ref EMPTY: String = String::new();
+}
+
+pub fn extract_bg_from_regex(part: &str, re: &Regex) -> Option<YumlExpression> {
+    if let Some(object) = re.find(&part) {
+        let a_str = object.as_str();
+        let part = &a_str[1..a_str.len() - 1];
+        let ret = extract_bg_and_note(part, true);
+        Some(YumlExpression::from(ret))
+    } else {
+        None
+    }
 }
 
 fn build_escaped_chars() -> HashMap<char, String> {

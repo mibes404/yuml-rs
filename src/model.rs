@@ -149,6 +149,20 @@ pub struct Dot {
     pub labeldistance: Option<u32>,
 }
 
+pub struct Signal {
+    pub signal_type: SignalType,
+    pub actor_a: Option<Actor>,
+    pub actor_b: Option<Actor>,
+    pub line_type: Option<Style>,
+    pub arrow_type: Option<Arrow>,
+    pub message: Option<String>,
+}
+
+pub enum SignalType {
+    Signal,
+    Note,
+}
+
 pub struct Element {
     pub uid: String,
     pub uid2: Option<String>,
@@ -179,6 +193,7 @@ pub enum YumlProps {
     Diamond,
     MRecord,
     Edge(EdgeProps),
+    Signal(SignalProps),
 }
 
 impl YumlProps {
@@ -200,12 +215,21 @@ pub struct EdgeProps {
     pub style: Style,
 }
 
+#[derive(PartialEq)]
+pub struct SignalProps {
+    pub prefix: Option<String>,
+    pub suffix: Option<String>,
+    pub style: Style,
+}
+
 #[derive(PartialEq, Clone)]
 pub enum Arrow {
     Vee,
     ODiamond,
     Diamond,
     Empty,
+    Filled,
+    Open,
 }
 
 #[derive(PartialEq, Clone)]
@@ -215,6 +239,7 @@ pub enum Style {
     Filled,
     Rounded,
     Invis,
+    Async,
 }
 
 impl Display for Arrow {
@@ -224,6 +249,8 @@ impl Display for Arrow {
             Arrow::Empty => f.write_str("empty"),
             Arrow::ODiamond => f.write_str("odiamond"),
             Arrow::Diamond => f.write_str("diamond"),
+            Arrow::Filled => f.write_str("arrow-filled"),
+            Arrow::Open => f.write_str("arrow-open"),
         }
     }
 }
@@ -236,6 +263,7 @@ impl Display for Style {
             Style::Filled => f.write_str("filled"),
             Style::Rounded => f.write_str("rounded"),
             Style::Invis => f.write_str("invis"),
+            Style::Async => f.write_str("async"),
         }
     }
 }
@@ -260,6 +288,7 @@ impl Display for YumlExpression {
             YumlProps::Diamond => f.write_str("diamond"),
             YumlProps::MRecord => f.write_str("mrecord"),
             YumlProps::Edge(_) => f.write_str("edge"),
+            YumlProps::Signal(_) => f.write_str("signal"),
         }
     }
 }
@@ -348,6 +377,13 @@ impl Display for Dot {
 
         f.write_str("]")
     }
+}
+
+pub struct Actor {
+    pub actor_type: String,
+    pub name: String,
+    pub label: String,
+    pub index: usize,
 }
 
 #[cfg(test)]

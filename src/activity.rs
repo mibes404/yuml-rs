@@ -15,7 +15,7 @@ use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
 use crate::model::{Arrow, Directions, Dot, DotShape, EdgeProps, Element, Options, Style, YumlExpression, YumlProps};
 use crate::utils::{
-    add_bar_facet, escape_label, extract_bg_and_note, record_name, serialize_dot_elements, split_yuml_expr, EMPTY,
+    add_bar_facet, escape_label, extract_bg_from_regex, record_name, serialize_dot_elements, split_yuml_expr, EMPTY,
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -46,15 +46,17 @@ impl Diagram for Activity {
         for expression in expressions {
             for elem in &expression {
                 let label = &elem.label;
+                let uid_label = record_name(label).to_string();
+
                 match &elem.props {
                     YumlProps::Diamond => {
-                        if uids.contains_key(label) {
+                        if uids.contains_key(&uid_label) {
                             continue;
                         }
 
                         len += 1;
                         let uid = format!("A{}", len);
-                        uids.insert(record_name(label).to_string(), uid.clone());
+                        uids.insert(uid_label, uid.clone());
 
                         let node = Dot {
                             shape: DotShape::Diamond,
@@ -78,13 +80,13 @@ impl Diagram for Activity {
                         elements.push(Element::new(&uid, node));
                     }
                     YumlProps::MRecord => {
-                        if uids.contains_key(label) {
+                        if uids.contains_key(&uid_label) {
                             continue;
                         }
 
                         len += 1;
                         let uid = format!("A{}", len);
-                        uids.insert(record_name(&label).to_string(), uid.clone());
+                        uids.insert(uid_label, uid.clone());
 
                         let node = Dot {
                             shape: DotShape::Record,
@@ -107,17 +109,17 @@ impl Diagram for Activity {
 
                         elements.push(Element::new(&uid, node));
                     }
-                    YumlProps::Edge(_) => {
+                    YumlProps::Edge(_) | YumlProps::Signal(_) => {
                         // ignore for now
                     }
                     YumlProps::NoteOrRecord(is_note, fillcolor, fontcolor) => {
-                        if uids.contains_key(label) {
+                        if uids.contains_key(&uid_label) {
                             continue;
                         }
 
                         len += 1;
                         let uid = format!("A{}", len);
-                        uids.insert(record_name(label).to_string(), uid.clone());
+                        uids.insert(uid_label, uid.clone());
 
                         let node = if !*is_note && (label == "start" || label == "end") {
                             Dot {
@@ -180,17 +182,8 @@ impl Diagram for Activity {
             }
 
             for range in expression.windows(3) {
-                let previous_is_edge = if let Some(YumlProps::Edge(_)) = range.get(0).map(|c| &c.props) {
-                    true
-                } else {
-                    false
-                };
-
-                let next_is_edge = if let Some(YumlProps::Edge(_)) = range.get(2).map(|c| &c.props) {
-                    true
-                } else {
-                    false
-                };
+                let previous_is_edge = matches!(range.get(0).map(|c| &c.props), Some(YumlProps::Edge(_)));
+                let next_is_edge = matches!(range.get(2).map(|c| &c.props), Some(YumlProps::Edge(_)));
 
                 if !previous_is_edge && !next_is_edge {
                     if let Some(YumlProps::Edge(props)) = range.get(1).map(|c| &c.props) {
@@ -276,11 +269,8 @@ impl Diagram for Activity {
                 return None;
             }
 
-            if let Some(actvity) = R_ACTIVITY.find(&part) {
-                let a_str = actvity.as_str();
-                let part = &a_str[1..a_str.len() - 1];
-                let ret = extract_bg_and_note(part, true);
-                return Some(Ok(YumlExpression::from(ret)));
+            if let Some(note) = extract_bg_from_regex(&part, &R_ACTIVITY) {
+                return Some(Ok(note));
             }
 
             if let Some(decision) = R_DECISION.find(&part) {

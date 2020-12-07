@@ -1,8 +1,8 @@
 use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
 use crate::model::{Arrow, Dot, DotShape, EdgeProps, Options, Style, YumlExpression, YumlProps};
-use crate::utils::EMPTY;
-use crate::utils::{extract_bg_and_note, format_label, record_name, serialize_dot, split_yuml_expr};
+use crate::utils::{extract_bg_from_regex, EMPTY};
+use crate::utils::{format_label, record_name, serialize_dot, split_yuml_expr};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -31,14 +31,15 @@ impl Diagram for ClassDiagram {
                 if let YumlProps::NoteOrRecord(is_note, fillcolor, fontcolor) = &elem.props {
                     let shape = YumlProps::note_or_record_shape(*is_note);
                     let label = &elem.label;
+                    let uid_label = record_name(label).to_string();
 
-                    if uids.contains_key(label) {
+                    if uids.contains_key(&uid_label) {
                         continue;
                     }
 
                     len += 1;
                     let uid = format!("A{}", len);
-                    uids.insert(record_name(label).to_string(), uid.clone());
+                    uids.insert(uid_label, uid.clone());
 
                     let label = format_label(label, 20, true);
                     let mut node = Dot {
@@ -74,10 +75,10 @@ impl Diagram for ClassDiagram {
             }
 
             if expression.len() == 3 {
-                let elem = expression.get(1).unwrap();
+                let elem = &expression[1];
                 if let YumlProps::Edge(props) = &elem.props {
-                    let previous = expression.get(0).unwrap();
-                    let next = expression.get(2).unwrap();
+                    let previous = &expression[0];
+                    let next = &expression[2];
 
                     let has_note = if let YumlProps::NoteOrRecord(is_note, _, _) = previous.props {
                         is_note
@@ -132,10 +133,10 @@ impl Diagram for ClassDiagram {
             }
 
             if expression.len() == 4 {
-                let previous = expression.get(0).unwrap();
-                let current = expression.get(1).unwrap();
-                let next = expression.get(2).unwrap();
-                let last = expression.get(3).unwrap();
+                let previous = &expression[0];
+                let current = &expression[1];
+                let next = &expression[2];
+                let last = &expression[3];
 
                 let pattern = format!(
                     "{},{},{},{}",
@@ -296,11 +297,8 @@ impl Diagram for ClassDiagram {
                 return None;
             }
 
-            if let Some(class_box) = R_CLASS_BOX.find(&part) {
-                let a_str = class_box.as_str();
-                let part = &a_str[1..a_str.len() - 1];
-                let ret = extract_bg_and_note(part, true);
-                return Some(Ok(YumlExpression::from(ret)));
+            if let Some(note) = extract_bg_from_regex(&part, &R_CLASS_BOX) {
+                return Some(Ok(note));
             }
 
             // inheritance
