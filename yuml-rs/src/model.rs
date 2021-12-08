@@ -379,6 +379,7 @@ impl Display for Dot {
     }
 }
 
+#[derive(Clone)]
 pub struct Actor {
     pub actor_type: String,
     pub name: String,

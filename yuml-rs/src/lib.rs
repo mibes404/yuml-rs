@@ -3,6 +3,7 @@ mod classdiagram;
 mod diagram;
 mod error;
 mod model;
+mod parser;
 mod rgb;
 mod sequence;
 mod utils;

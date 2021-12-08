@@ -35,7 +35,7 @@ impl Diagram for Sequence {
 
         for expression in expressions {
             for elem in &expression {
-                if let YumlProps::NoteOrRecord(is_note, fillcolor, fontcolor) = &elem.props {
+                if let YumlProps::NoteOrRecord(is_note, _fillcolor, _fontcolor) = &elem.props {
                     if !is_note {
                         // object
                         let label = &elem.label;
@@ -65,25 +65,43 @@ impl Diagram for Sequence {
                 if let YumlProps::Signal(signal) = &elem.props {
                     if is_note(&previous.props) && is_note(&next.props) {
                         // todo:
-                        // let message = &signal.prefix;
-                        // let style = &signal.style;
-                        // let actor_a: Option<Actor> = uids.get(record_name(&previous.label)).map(|a| *a.clone());
-                        // let actor_b = uids.get(record_name(&next.label)).map(|b| *b.clone());
+                        let message = &signal.prefix;
+                        let style = &signal.style;
+                        let actor_a = uids.get(record_name(&previous.label)).map(|a| (*a).clone());
+                        let actor_b = uids.get(record_name(&next.label)).map(|b| (*b).clone());
                         // let signal: Dot;
 
-                        // match style {
-                        //     Style::Solid => Signal {
-                        //         signal_type: SignalType::Signal,
-                        //         actor_a,
-                        //         actor_b,
-                        //         line_type: Some(Style::Dashed),
-                        //         arrow_type: Some(Arrow::Open),
-                        //         message: message.clone(),
-                        //     },
-                        //     Style::Dashed => {}
-                        //     Style::Async => {}
-                        //     _ => {}
-                        // }
+                        let signal = match style {
+                            Style::Solid => Some(Signal {
+                                signal_type: SignalType::Signal,
+                                actor_a,
+                                actor_b,
+                                line_type: Some(Style::Dashed),
+                                arrow_type: Some(Arrow::Filled),
+                                message: message.clone(),
+                            }),
+                            Style::Dashed => Some(Signal {
+                                signal_type: SignalType::Signal,
+                                actor_a,
+                                actor_b,
+                                line_type: Some(Style::Solid),
+                                arrow_type: Some(Arrow::Filled),
+                                message: message.clone(),
+                            }),
+                            Style::Async => Some(Signal {
+                                signal_type: SignalType::Signal,
+                                actor_a,
+                                actor_b,
+                                line_type: Some(Style::Solid),
+                                arrow_type: Some(Arrow::Open),
+                                message: message.clone(),
+                            }),
+                            _ => None,
+                        };
+
+                        if let Some(signal) = signal {
+                            signals.push(signal);
+                        }
                     }
                 }
             }
