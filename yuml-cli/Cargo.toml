@@ -1,0 +1,16 @@
+[package]
+name = "yuml-cli"
+version = "0.1.0"
+authors = ["mibes <mibes@avaya.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = "1.4"
+regex = "1.5"
+derive_more = "0.99"
+itertools = "0.10"
+
+# local
+yuml-rs = { path = "../yuml-rs" }
