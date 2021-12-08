@@ -19,7 +19,7 @@ lazy_static! {
 }
 
 pub fn extract_bg_from_regex(part: &str, re: &Regex) -> Option<YumlExpression> {
-    if let Some(object) = re.find(&part) {
+    if let Some(object) = re.find(part) {
         let a_str = object.as_str();
         let part = &a_str[1..a_str.len() - 1];
         let ret = extract_bg_and_note(part, true);

@@ -150,7 +150,7 @@ impl Diagram for Activity {
                                 height: Some(0.5),
                                 fontsize: Some(10),
                                 margin: Some("0.20,0.05".to_string()),
-                                label: Some(escape_label(&label)),
+                                label: Some(escape_label(label)),
                                 style: vec![Style::Rounded],
                                 fillcolor: None,
                                 width: None,

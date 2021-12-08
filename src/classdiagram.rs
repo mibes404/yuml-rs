@@ -259,16 +259,16 @@ impl Diagram for ClassDiagram {
 
     fn parse_yuml_expr(&self, spec_line: &str) -> YumlResult<Vec<YumlExpression>> {
         fn process_left(left: &str) -> (Option<Arrow>, String) {
-            if left.starts_with("<>") {
-                (Some(Arrow::ODiamond), left[2..].to_string())
-            } else if left.starts_with("++") {
-                (Some(Arrow::Diamond), left[2..].to_string())
-            } else if left.starts_with('+') {
-                (Some(Arrow::Diamond), left[1..].to_string())
+            if let Some(stripped) = left.strip_prefix("<>") {
+                (Some(Arrow::ODiamond), stripped.to_string())
+            } else if let Some(stripped) = left.strip_prefix("++") {
+                (Some(Arrow::Diamond), stripped.to_string())
+            } else if let Some(stripped) = left.strip_prefix('+') {
+                (Some(Arrow::Diamond), stripped.to_string())
             } else if left.starts_with('<') || left.starts_with('>') {
                 (Some(Arrow::Vee), left[1..].to_string())
-            } else if left.starts_with('^') {
-                (Some(Arrow::Empty), left[1..].to_string())
+            } else if let Some(stripped) = left.strip_prefix('^') {
+                (Some(Arrow::Empty), stripped.to_string())
             } else {
                 (None, left.to_string())
             }

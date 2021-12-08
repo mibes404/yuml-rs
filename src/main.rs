@@ -92,10 +92,10 @@ fn main() {
         }
     };
 
-    render_svg_from_dot(dot)
+    render_svg_from_dot(&dot)
 }
 
-fn render_svg_from_dot(dot: String) {
+fn render_svg_from_dot(dot: &str) {
     // dot -Tsvg sample_dot.txt
     let dot_process = Command::new("dot")
         .arg("-Tsvg")
