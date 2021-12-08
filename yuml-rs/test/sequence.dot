@@ -1,0 +1,4 @@
+digraph G {
+  graph [ bgcolor=transparent, fontname=Helvetica ]
+  node [ shape=none, margin=0, color=black, fontcolor=black, fontname=Helvetica ]
+  edge [ color=black, fontcolor=black, fontname=Helvetica ]
