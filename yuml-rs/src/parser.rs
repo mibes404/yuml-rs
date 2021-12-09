@@ -1,5 +1,5 @@
-use std::borrow::Cow;
-
+use crate::activity::Activity;
+use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
@@ -13,8 +13,7 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated},
     IResult,
 };
-
-use crate::activity::Activity;
+use std::borrow::Cow;
 
 pub struct Header<'a> {
     pub key: Cow<'a, str>,
@@ -84,6 +83,7 @@ pub fn parse_file(yuml: &[u8]) -> IResult<&[u8], ()> {
     Ok((rest, ()))
 }
 
+#[derive(Debug)]
 enum Element<'a> {
     StartTag,
     EndTag,
@@ -92,6 +92,14 @@ enum Element<'a> {
     Decision(Cow<'a, str>),
     Arrow,
     Label(Cow<'a, str>),
+}
+
+#[derive(Debug)]
+struct ElementRelation<'a> {
+    id: usize,
+    element: &'a Element<'a>,
+    previous: &'a Element<'a>,
+    next: &'a Element<'a>,
 }
 
 pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ()> {
@@ -113,23 +121,41 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ()> {
     let label = map(delimited(tag("["), alphanumeric_string, tag("]")), |s| {
         Element::Label(s)
     });
-
-    // let label = map(take_until("->"), |s| Element::Label(as_str(s)));
     let arrow = map(tag("->"), |_| Element::Arrow);
 
-    let parse_element = alt((start_tag, decision, activity, parallel, arrow, label, end_tag));
+    let parse_element = alt((start_tag, end_tag, decision, activity, parallel, arrow, label));
     let parse_line = many_till(parse_element, line_ending);
     let mut parse_lines = many_till(parse_line, eof);
 
     let (rest, (lines, _)) = parse_lines(yuml)?;
-    println!("{}", String::from_utf8_lossy(rest));
-
     let elements: Vec<Element> = lines
         .into_iter()
         .flat_map(|(elements, _le)| elements.into_iter())
         .collect();
 
+    let mut element_relations: Vec<ElementRelation> = Vec::with_capacity(elements.len());
+
+    elements
+        .iter()
+        .enumerate()
+        .circular_tuple_windows::<(_, _, _)>()
+        .for_each(|(prev, me, next)| {
+            let e = ElementRelation {
+                id: me.0,
+                element: me.1,
+                previous: prev.1,
+                next: next.1,
+            };
+            element_relations.push(e);
+        });
+
     assert_eq!(elements.len(), 28);
+    assert_eq!(element_relations.len(), 28);
+
+    element_relations.sort_by(|a, b| a.id.cmp(&b.id));
+    for e in &element_relations {
+        println!("{:?}", e);
+    }
 
     Ok((rest, ()))
 }
