@@ -1,14 +1,12 @@
-use crate::activity::Activity;
 use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until},
     character::{
-        complete::{alphanumeric0, anychar, newline, not_line_ending},
-        is_newline,
+        complete::{alphanumeric0, newline},
         streaming::line_ending,
     },
-    combinator::{cond, eof, map, opt},
+    combinator::{eof, map},
     multi::{many0, many_till},
     sequence::{delimited, preceded, separated_pair, terminated},
     IResult,

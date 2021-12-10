@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
 use yuml_rs::{process_yuml_document, render_svg_from_dot};
 
 const SAMPLE_YUML: &str = r#"

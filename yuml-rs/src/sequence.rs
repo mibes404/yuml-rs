@@ -1,7 +1,7 @@
 use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
 use crate::model::{
-    Actor, Arrow, Dot, DotShape, Options, Signal, SignalProps, SignalType, Style, YumlExpression, YumlProps,
+    Actor, Arrow, Options, Signal, SignalProps, SignalType, Style, YumlExpression, YumlProps,
 };
 use crate::utils::{extract_bg_from_regex, format_label, record_name, split_yuml_expr};
 use itertools::Itertools;
@@ -25,9 +25,9 @@ fn is_note(props: &YumlProps) -> bool {
 }
 
 impl Diagram for Sequence {
-    fn compose_dot_expr(&self, lines: &[&str], options: &Options) -> YumlResult<String> {
+    fn compose_dot_expr(&self, lines: &[&str], _options: &Options) -> YumlResult<String> {
         let mut uids: HashMap<String, Actor> = HashMap::new();
-        let mut svg = String::new();
+        let svg = String::new();
         let mut signals: Vec<Signal> = vec![];
 
         let expressions: Vec<Vec<YumlExpression>> =
