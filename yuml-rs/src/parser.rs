@@ -11,7 +11,12 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::{borrow::Cow, collections::HashMap, hash::Hash};
+use std::{
+    borrow::{BorrowMut, Cow},
+    cell::RefCell,
+    collections::HashMap,
+    hash::Hash,
+};
 
 use crate::model::{ActivityDotFile, Arrow, Dot, DotElement, Style};
 
@@ -95,10 +100,68 @@ pub fn parse_file(yuml: &[u8]) -> IResult<&[u8], DotFile> {
 enum Element<'a> {
     StartTag,
     EndTag,
-    Activity(Cow<'a, str>),
-    Parallel(Cow<'a, str>),
-    Decision(Cow<'a, str>),
-    Arrow(Option<Cow<'a, str>>),
+    Activity(ElementProps<'a>),
+    Parallel(ElementProps<'a>),
+    Decision(ElementProps<'a>),
+    Arrow(ArrowProps<'a>),
+}
+
+#[derive(Debug)]
+struct ElementProps<'a> {
+    label: Cow<'a, str>,
+    incoming_connections: RefCell<u8>,
+}
+
+#[derive(Debug)]
+struct ArrowProps<'a> {
+    label: Option<Cow<'a, str>>,
+    outgoing_connection_id: RefCell<u8>,
+}
+
+impl<'a> Hash for ElementProps<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.label.hash(state);
+    }
+}
+
+impl<'a> PartialEq for ElementProps<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label
+    }
+}
+
+impl<'a> Eq for ElementProps<'a> {}
+
+impl<'a> Hash for ArrowProps<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.label.hash(state);
+    }
+}
+
+impl<'a> PartialEq for ArrowProps<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label
+    }
+}
+
+impl<'a> Eq for ArrowProps<'a> {}
+
+impl<'a> ElementProps<'a> {
+    pub fn new(label: Cow<'a, str>) -> Self {
+        Self {
+            label,
+            incoming_connections: RefCell::new(0),
+        }
+    }
+}
+
+impl<'a> ArrowProps<'a> {
+    pub fn new(label: Option<Cow<'a, str>>) -> Self {
+        Self {
+            label,
+            outgoing_connection_id: RefCell::new(0),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -116,19 +179,21 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
     let end_tag = map(tag("(end)"), |_s: &[u8]| Element::EndTag);
     let alphanumeric_string = map(take_until(">"), as_str);
     let decision = map(delimited(tag("<"), alphanumeric_string, tag(">")), |s| {
-        Element::Decision(s)
+        Element::Decision(ElementProps::new(s))
     });
     let alphanumeric_string = map(take_until(")"), as_str);
     let activity = map(delimited(tag("("), alphanumeric_string, tag(")")), |s| {
-        Element::Activity(s)
+        Element::Activity(ElementProps::new(s))
     });
     let alphanumeric_string = map(take_until("|"), as_str);
     let parallel = map(delimited(tag("|"), alphanumeric_string, tag("|")), |s| {
-        Element::Parallel(s)
+        Element::Parallel(ElementProps::new(s))
     });
     let alphanumeric_string = map(take_until("]"), as_str);
     let label = map(delimited(tag("["), alphanumeric_string, tag("]")), |s| s);
-    let arrow = map(tuple((opt(label), tag("->"))), |(lbl, _)| Element::Arrow(lbl));
+    let arrow = map(tuple((opt(label), tag("->"))), |(lbl, _)| {
+        Element::Arrow(ArrowProps::new(lbl))
+    });
 
     let parse_element = alt((start_tag, end_tag, decision, activity, parallel, arrow));
     let parse_line = many_till(parse_element, line_ending);
@@ -170,13 +235,39 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
         .enumerate()
         .circular_tuple_windows::<(_, _, _)>()
         .map(|(prev, me, next)| ((lookup(prev), prev.1), (lookup(me), me.1), (lookup(next), next.1)))
-        .map(|(prev, me, next)| ElementRelation {
-            id: me.0,
-            previous_id: prev.0,
-            next_id: next.0,
-            element: me.1,
-            previous: prev.1,
-            next: next.1,
+        .map(|(prev, me, next)| {
+            let next_incoming_connection_count = match &next.1 {
+                Element::StartTag | Element::EndTag => 1,
+                Element::Activity(props) | Element::Parallel(props) | Element::Decision(props) => {
+                    if let Ok(mut incoming_connections) = props.incoming_connections.try_borrow_mut() {
+                        *incoming_connections += 1;
+                        *incoming_connections
+                    } else {
+                        1
+                    }
+                }
+                Element::Arrow(_) => 1,
+            };
+
+            match &me.1 {
+                Element::StartTag | Element::EndTag => {}
+                Element::Activity(_) | Element::Parallel(_) | Element::Decision(_) => {}
+                Element::Arrow(props) => {
+                    if let Ok(mut outgoing_connection_count) = props.outgoing_connection_id.try_borrow_mut() {
+                        println!("{}", next_incoming_connection_count);
+                        *outgoing_connection_count = next_incoming_connection_count
+                    }
+                }
+            }
+
+            ElementRelation {
+                id: me.0,
+                previous_id: prev.0,
+                next_id: next.0,
+                element: me.1,
+                previous: prev.1,
+                next: next.1,
+            }
         })
         .map(|e| DotElement::from(&e))
         .collect()
@@ -195,11 +286,20 @@ impl<'a> From<&ElementRelation<'a>> for DotElement {
                 uid: format!("A{}", e.id),
                 uid2: None,
             },
-            Element::Arrow(_lbl) => DotElement {
-                dot: Dot::from(e.element),
-                uid: format!("A{}", e.previous_id),
-                uid2: Some(format!("A{}", e.next_id)),
-            },
+            Element::Arrow(props) => {
+                let outgoing_connection_count = *(props.outgoing_connection_id.borrow());
+                let uid2 = if outgoing_connection_count > 1 {
+                    format!("A{}:f{}:n", e.next_id, outgoing_connection_count + 1)
+                } else {
+                    format!("A{}", e.next_id)
+                };
+
+                DotElement {
+                    dot: Dot::from(e.element),
+                    uid: format!("A{}", e.previous_id),
+                    uid2: Some(uid2),
+                }
+            }
         }
     }
 }
@@ -219,41 +319,52 @@ impl<'a> From<&Element<'a>> for Dot {
                 width: Some(0.3),
                 ..Dot::default()
             },
-            Element::Activity(lbl) => Dot {
+            Element::Activity(ElementProps {
+                label,
+                incoming_connections: _incoming_connections,
+            }) => Dot {
                 shape: crate::model::DotShape::Rectangle,
                 height: Some(0.5),
                 margin: Some("0.20,0.05".to_string()),
-                label: Some(lbl.clone().into_owned()),
+                label: Some(label.clone().into_owned()),
                 style: vec![Style::Rounded],
                 fontsize: Some(10),
                 ..Dot::default()
             },
-            Element::Parallel(_lbl) => Dot {
-                shape: crate::model::DotShape::Record,
-                height: Some(0.05),
-                width: Some(0.5),
-                penwidth: Some(4),
-                label: Some("<f1>|<f2>".to_string()),
-                style: vec![Style::Filled],
-                fontsize: Some(1),
-                ..Dot::default()
-            },
-            Element::Decision(lbl) => Dot {
+            Element::Parallel(props) => {
+                let incoming_connections = *props.incoming_connections.borrow();
+                let label = (0..=incoming_connections).map(|i| format!("<f{}>", i + 1)).join("|");
+
+                Dot {
+                    shape: crate::model::DotShape::Record,
+                    height: Some(0.05),
+                    width: Some(0.5),
+                    penwidth: Some(4),
+                    label: Some(label),
+                    style: vec![Style::Filled],
+                    fontsize: Some(1),
+                    ..Dot::default()
+                }
+            }
+            Element::Decision(ElementProps {
+                label,
+                incoming_connections: _incoming_connections,
+            }) => Dot {
                 shape: crate::model::DotShape::Diamond,
                 height: Some(0.5),
                 width: Some(0.5),
-                label: Some(lbl.clone().into_owned()),
+                label: Some(label.clone().into_owned()),
                 fontsize: Some(0),
                 ..Dot::default()
             },
-            Element::Arrow(lbl) => Dot {
+            Element::Arrow(props) => Dot {
                 shape: crate::model::DotShape::Edge,
                 style: vec![Style::Solid],
                 dir: Some("both".to_string()),
                 arrowhead: Some(Arrow::Vee),
                 fontsize: Some(10),
                 labeldistance: Some(1),
-                label: lbl.as_ref().map(|s| s.clone().into_owned()),
+                label: props.label.as_ref().map(|s| s.clone().into_owned()),
                 ..Dot::default()
             },
         }
