@@ -13,7 +13,9 @@
 
 use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
-use crate::model::{Arrow, Directions, Dot, DotShape, EdgeProps, Element, Options, Style, YumlExpression, YumlProps};
+use crate::model::{
+    Arrow, Directions, Dot, DotElement, DotShape, EdgeProps, Options, Style, YumlExpression, YumlProps,
+};
 use crate::utils::{
     add_bar_facet, escape_label, extract_bg_from_regex, record_name, serialize_dot_elements, split_yuml_expr, EMPTY,
 };
@@ -38,7 +40,7 @@ impl Diagram for Activity {
     fn compose_dot_expr(&self, lines: &[&str], options: &Options) -> YumlResult<String> {
         let mut uids: HashMap<String, String> = HashMap::new();
         let mut len = 0;
-        let mut elements: Vec<Element> = vec![];
+        let mut elements: Vec<DotElement> = vec![];
 
         let expressions: Vec<Vec<YumlExpression>> =
             lines.iter().map(|line| self.parse_yuml_expr(line)).try_collect()?;
@@ -77,7 +79,7 @@ impl Diagram for Activity {
                             labeldistance: None,
                         };
 
-                        elements.push(Element::new(&uid, node));
+                        elements.push(DotElement::new(&uid, node));
                     }
                     YumlProps::MRecord => {
                         if uids.contains_key(&uid_label) {
@@ -107,7 +109,7 @@ impl Diagram for Activity {
                             labeldistance: None,
                         };
 
-                        elements.push(Element::new(&uid, node));
+                        elements.push(DotElement::new(&uid, node));
                     }
                     YumlProps::Edge(_) | YumlProps::Signal(_) => {
                         // ignore for now
@@ -176,7 +178,7 @@ impl Diagram for Activity {
                             node
                         };
 
-                        elements.push(Element::new(&uid, node));
+                        elements.push(DotElement::new(&uid, node));
                     }
                 }
             }
@@ -248,7 +250,7 @@ impl Diagram for Activity {
                             }
                         }
 
-                        elements.push(Element::new_edge(&uid1, &uid2, edge))
+                        elements.push(DotElement::new_edge(&uid1, &uid2, edge))
                     }
                 }
             }

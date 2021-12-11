@@ -1,7 +1,7 @@
 use crate::error::{OptionsError, YumlError};
 use itertools::Itertools;
 use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 
 pub struct BgAndNote {
     pub bg: Option<String>,
@@ -115,6 +115,12 @@ pub enum DotShape {
     Rectangle,
 }
 
+impl Default for DotShape {
+    fn default() -> Self {
+        DotShape::Circle
+    }
+}
+
 impl Display for DotShape {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -130,6 +136,7 @@ impl Display for DotShape {
     }
 }
 
+#[derive(Default)]
 pub struct Dot {
     pub shape: DotShape,
     pub height: Option<f32>,
@@ -163,15 +170,15 @@ pub enum SignalType {
     Note,
 }
 
-pub struct Element {
+pub struct DotElement {
     pub uid: String,
     pub uid2: Option<String>,
     pub dot: Dot,
 }
 
-impl Element {
+impl DotElement {
     pub fn new(uid: &str, dot: Dot) -> Self {
-        Element {
+        DotElement {
             uid: uid.to_string(),
             uid2: None,
             dot,
@@ -179,11 +186,47 @@ impl Element {
     }
 
     pub fn new_edge(uid: &str, uid2: &str, dot: Dot) -> Self {
-        Element {
+        DotElement {
             uid: uid.to_string(),
             uid2: Some(uid2.to_string()),
             dot,
         }
+    }
+}
+
+impl Display for DotElement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(uid2) = &self.uid2 {
+            f.write_fmt(format_args!("    {} -> {} {}", self.uid, uid2, self.dot))
+        } else {
+            f.write_fmt(format_args!("    {} {}", self.uid, self.dot))
+        }
+    }
+}
+
+pub struct ActivityDotFile {
+    dots: Vec<DotElement>,
+}
+
+impl ActivityDotFile {
+    pub fn new(dots: Vec<DotElement>) -> Self {
+        ActivityDotFile { dots }
+    }
+}
+
+impl Display for ActivityDotFile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("digraph G {\n")?;
+        f.write_str("  graph [ bgcolor=transparent, fontname=Helvetica ]\n")?;
+        f.write_str("  node [ shape=none, margin=0, color=black, fontcolor=black, fontname=Helvetica ]\n")?;
+        f.write_str("  edge [ color=black, fontcolor=black, fontname=Helvetica ]\n")?;
+        f.write_str("    ranksep = 0.5\n")?;
+        f.write_str("    rankdir = TB\n")?;
+        for dot in &self.dots {
+            f.write_str(&dot.to_string())?;
+            f.write_char('\n')?;
+        }
+        f.write_char('}')
     }
 }
 

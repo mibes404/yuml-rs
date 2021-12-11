@@ -1,5 +1,5 @@
 use crate::error::{OptionsError, YumlResult};
-use crate::model::{BgAndNote, Dot, DotShape, Element, Options, YumlExpression};
+use crate::model::{BgAndNote, Dot, DotElement, DotShape, Options, YumlExpression};
 use crate::rgb::COLOR_TABLE;
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -173,7 +173,7 @@ fn word_wrap(line: &str, width: usize, new_line: char) -> String {
     line.to_string()
 }
 
-pub fn serialize_dot_elements(mut elements: Vec<Element>) -> YumlResult<String> {
+pub fn serialize_dot_elements(mut elements: Vec<DotElement>) -> YumlResult<String> {
     let mut dot = String::new();
     while let Some(elem) = elements.pop() {
         if let Some(uid2) = elem.uid2 {
@@ -191,7 +191,7 @@ pub fn serialize_dot_elements(mut elements: Vec<Element>) -> YumlResult<String> 
     Ok(dot)
 }
 
-pub fn add_bar_facet(elements: &mut [Element], name: &str) -> Option<String> {
+pub fn add_bar_facet(elements: &mut [DotElement], name: &str) -> Option<String> {
     for element in elements {
         if element.uid == name {
             let mut facet_num = 1;
