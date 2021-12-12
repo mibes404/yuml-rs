@@ -8,25 +8,14 @@
  viewBox="0.00 0.00 179.50 591.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 587)">
 <title>G</title>
-<!-- A0 -->
-<g id="node1" class="node">
-<title>A0</title>
-<ellipse fill="none" stroke="black" cx="71" cy="-572" rx="11" ry="11"/>
-</g>
 <!-- A2 -->
-<g id="node2" class="node">
+<g id="node1" class="node">
 <title>A2</title>
 <polygon fill="none" stroke="black" points="71,-524 53,-506 71,-488 89,-506 71,-524"/>
 <text text-anchor="middle" x="71" y="-505.7" font-family="Helvetica,sans-Serif" font-size="1.00">a</text>
 </g>
-<!-- A0&#45;&gt;A2 -->
-<g id="edge1" class="edge">
-<title>A0&#45;&gt;A2</title>
-<path fill="none" stroke="black" d="M71,-561C71,-553.85 71,-543.85 71,-534.41"/>
-<polygon fill="black" stroke="black" points="71,-524.15 75.5,-534.15 71,-529.15 71,-534.15 71,-534.15 71,-534.15 71,-529.15 66.5,-534.15 71,-524.15 71,-524.15"/>
-</g>
 <!-- A4 -->
-<g id="node3" class="node">
+<g id="node2" class="node">
 <title>A4</title>
 <path fill="none" stroke="black" d="M58,-441C58,-441 12,-441 12,-441 6,-441 0,-435 0,-429 0,-429 0,-417 0,-417 0,-411 6,-405 12,-405 12,-405 58,-405 58,-405 64,-405 70,-411 70,-417 70,-417 70,-429 70,-429 70,-435 64,-441 58,-441"/>
 <text text-anchor="middle" x="35" y="-420.5" font-family="Helvetica,sans-Serif" font-size="10.00">Fill Kettle</text>
@@ -39,28 +28,26 @@
 <text text-anchor="middle" x="64.5" y="-462" font-family="Helvetica,sans-Serif" font-size="10.00">kettle empty</text>
 </g>
 <!-- A6 -->
-<g id="node4" class="node">
+<g id="node3" class="node">
 <title>A6</title>
 <polygon fill="black" stroke="black" stroke-width="4" points="52,-363.5 52,-367.5 88,-367.5 88,-363.5 52,-363.5"/>
-<text text-anchor="middle" x="60.64" y="-365.2" font-family="Helvetica,sans-Serif" font-size="1.00"> </text>
-<polyline fill="none" stroke="black" stroke-width="4" points="69.28,-363.5 69.28,-367.5 "/>
-<text text-anchor="middle" x="78.42" y="-365.2" font-family="Helvetica,sans-Serif" font-size="1.00"> </text>
+<text text-anchor="middle" x="69.64" y="-365.2" font-family="Helvetica,sans-Serif" font-size="1.00"> </text>
 </g>
 <!-- A2&#45;&gt;A6 -->
 <g id="edge4" class="edge">
-<title>A2&#45;&gt;A6</title>
-<path fill="none" stroke="black" d="M78.61,-495.55C83.49,-488.86 89.39,-479.42 92,-470 101.36,-436.22 84.54,-395.29 75.37,-376.64"/>
-<polygon fill="black" stroke="black" points="70.59,-367.53 79.22,-374.3 72.92,-371.96 75.24,-376.39 75.24,-376.39 75.24,-376.39 72.92,-371.96 71.25,-378.48 70.59,-367.53 70.59,-367.53"/>
-<text text-anchor="middle" x="114" y="-420.5" font-family="Helvetica,sans-Serif" font-size="10.00">kettle full</text>
+<title>A2&#45;&gt;A6:n</title>
+<path fill="none" stroke="black" d="M78.61,-495.55C83.49,-488.86 89.39,-479.42 92,-470 101.3,-436.42 85.09,-395.83 75.81,-376.62"/>
+<polygon fill="black" stroke="black" points="71.14,-367.51 79.71,-374.35 73.42,-371.96 75.71,-376.41 75.71,-376.41 75.71,-376.41 73.42,-371.96 71.7,-378.47 71.14,-367.51 71.14,-367.51"/>
+<text text-anchor="middle" x="115" y="-420.5" font-family="Helvetica,sans-Serif" font-size="10.00">kettle full</text>
 </g>
 <!-- A4&#45;&gt;A6 -->
 <g id="edge3" class="edge">
-<title>A4&#45;&gt;A6</title>
-<path fill="none" stroke="black" d="M45.88,-404.74C51.75,-395.45 58.77,-384.31 63.72,-376.45"/>
-<polygon fill="black" stroke="black" points="69.23,-367.73 67.7,-378.58 66.56,-371.95 63.89,-376.18 63.89,-376.18 63.89,-376.18 66.56,-371.95 60.09,-373.78 69.23,-367.73 69.23,-367.73"/>
+<title>A4&#45;&gt;A6:n</title>
+<path fill="none" stroke="black" d="M45.69,-404.74C51.44,-395.46 58.35,-384.3 63.33,-376.26"/>
+<polygon fill="black" stroke="black" points="68.64,-367.7 67.2,-378.57 66.01,-371.95 63.37,-376.2 63.37,-376.2 63.37,-376.2 66.01,-371.95 59.55,-373.83 68.64,-367.7 68.64,-367.7"/>
 </g>
 <!-- A11 -->
-<g id="node5" class="node">
+<g id="node4" class="node">
 <title>A11</title>
 <path fill="none" stroke="black" d="M87,-272C87,-272 37,-272 37,-272 31,-272 25,-266 25,-260 25,-260 25,-248 25,-248 25,-242 31,-236 37,-236 37,-236 87,-236 87,-236 93,-236 99,-242 99,-248 99,-248 99,-260 99,-260 99,-266 93,-272 87,-272"/>
 <text text-anchor="middle" x="62" y="-251.5" font-family="Helvetica,sans-Serif" font-size="10.00">Boil Kettle</text>
@@ -72,7 +59,7 @@
 <polygon fill="black" stroke="black" points="63.27,-272.44 68.49,-282.09 63.64,-277.43 64,-282.41 64,-282.41 64,-282.41 63.64,-277.43 59.51,-282.74 63.27,-272.44 63.27,-272.44"/>
 </g>
 <!-- A16 -->
-<g id="node7" class="node">
+<g id="node6" class="node">
 <title>A16</title>
 <path fill="none" stroke="black" d="M159.5,-326C159.5,-326 98.5,-326 98.5,-326 92.5,-326 86.5,-320 86.5,-314 86.5,-314 86.5,-302 86.5,-302 86.5,-296 92.5,-290 98.5,-290 98.5,-290 159.5,-290 159.5,-290 165.5,-290 171.5,-296 171.5,-302 171.5,-302 171.5,-314 171.5,-314 171.5,-320 165.5,-326 159.5,-326"/>
 <text text-anchor="middle" x="129" y="-305.5" font-family="Helvetica,sans-Serif" font-size="10.00">Add Tea Bag</text>
@@ -84,12 +71,10 @@
 <polygon fill="black" stroke="black" points="110.9,-326.03 106.7,-336.16 107.26,-329.45 103.61,-332.88 103.61,-332.88 103.61,-332.88 107.26,-329.45 100.53,-329.6 110.9,-326.03 110.9,-326.03"/>
 </g>
 <!-- A13 -->
-<g id="node6" class="node">
+<g id="node5" class="node">
 <title>A13</title>
 <polygon fill="black" stroke="black" stroke-width="4" points="58,-140.5 58,-144.5 94,-144.5 94,-140.5 58,-140.5"/>
-<text text-anchor="middle" x="66.64" y="-142.2" font-family="Helvetica,sans-Serif" font-size="1.00"> </text>
-<polyline fill="none" stroke="black" stroke-width="4" points="75.28,-140.5 75.28,-144.5 "/>
-<text text-anchor="middle" x="84.42" y="-142.2" font-family="Helvetica,sans-Serif" font-size="1.00"> </text>
+<text text-anchor="middle" x="75.64" y="-142.2" font-family="Helvetica,sans-Serif" font-size="1.00"> </text>
 </g>
 <!-- A11&#45;&gt;A13 -->
 <g id="edge6" class="edge">
@@ -98,7 +83,7 @@
 <polygon fill="black" stroke="black" points="75.86,-144.58 79.06,-155.07 75.23,-149.54 74.59,-154.5 74.59,-154.5 74.59,-154.5 75.23,-149.54 70.13,-153.93 75.86,-144.58 75.86,-144.58"/>
 </g>
 <!-- A22 -->
-<g id="node9" class="node">
+<g id="node8" class="node">
 <title>A22</title>
 <path fill="none" stroke="black" d="M102.5,-103C102.5,-103 49.5,-103 49.5,-103 43.5,-103 37.5,-97 37.5,-91 37.5,-91 37.5,-79 37.5,-79 37.5,-73 43.5,-67 49.5,-67 49.5,-67 102.5,-67 102.5,-67 108.5,-67 114.5,-73 114.5,-79 114.5,-79 114.5,-91 114.5,-91 114.5,-97 108.5,-103 102.5,-103"/>
 <text text-anchor="middle" x="76" y="-82.5" font-family="Helvetica,sans-Serif" font-size="10.00">Pour Water</text>
@@ -110,7 +95,7 @@
 <polygon fill="black" stroke="black" points="76,-103.03 80.5,-113.03 76,-108.03 76,-113.03 76,-113.03 76,-113.03 76,-108.03 71.5,-113.03 76,-103.03 76,-103.03"/>
 </g>
 <!-- A18 -->
-<g id="node8" class="node">
+<g id="node7" class="node">
 <title>A18</title>
 <path fill="none" stroke="black" d="M148.5,-218C148.5,-218 105.5,-218 105.5,-218 99.5,-218 93.5,-212 93.5,-206 93.5,-206 93.5,-194 93.5,-194 93.5,-188 99.5,-182 105.5,-182 105.5,-182 148.5,-182 148.5,-182 154.5,-182 160.5,-188 160.5,-194 160.5,-194 160.5,-206 160.5,-206 160.5,-212 154.5,-218 148.5,-218"/>
 <text text-anchor="middle" x="127" y="-197.5" font-family="Helvetica,sans-Serif" font-size="10.00">Add Milk</text>
@@ -128,7 +113,7 @@
 <polygon fill="black" stroke="black" points="77.13,-144.73 87.21,-149.04 80.51,-148.41 83.89,-152.09 83.89,-152.09 83.89,-152.09 80.51,-148.41 80.58,-155.13 77.13,-144.73 77.13,-144.73"/>
 </g>
 <!-- A25 -->
-<g id="node10" class="node">
+<g id="node9" class="node">
 <title>A25</title>
 <ellipse fill="none" stroke="black" cx="76" cy="-15" rx="11" ry="11"/>
 <ellipse fill="none" stroke="black" cx="76" cy="-15" rx="15" ry="15"/>
@@ -138,6 +123,17 @@
 <title>A22&#45;&gt;A25</title>
 <path fill="none" stroke="black" d="M76,-66.84C76,-58.78 76,-49.04 76,-40.25"/>
 <polygon fill="black" stroke="black" points="76,-30.17 80.5,-40.17 76,-35.17 76,-40.17 76,-40.17 76,-40.17 76,-35.17 71.5,-40.17 76,-30.17 76,-30.17"/>
+</g>
+<!-- A0 -->
+<g id="node10" class="node">
+<title>A0</title>
+<ellipse fill="none" stroke="black" cx="71" cy="-572" rx="11" ry="11"/>
+</g>
+<!-- A0&#45;&gt;A2 -->
+<g id="edge1" class="edge">
+<title>A0&#45;&gt;A2</title>
+<path fill="none" stroke="black" d="M71,-561C71,-553.85 71,-543.85 71,-534.41"/>
+<polygon fill="black" stroke="black" points="71,-524.15 75.5,-534.15 71,-529.15 71,-534.15 71,-534.15 71,-534.15 71,-529.15 66.5,-534.15 71,-524.15 71,-524.15"/>
 </g>
 </g>
 </svg>
