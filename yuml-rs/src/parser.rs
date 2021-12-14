@@ -190,7 +190,7 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
     let note_string = take_until("}");
     let note_props = delimited(tag("{"), note_string, tag("}"));
     let note = take_until("{");
-    let extract_attributes = map(tuple((note, opt(note_props))), |note| as_note(note));
+    let extract_attributes = map(tuple((note, opt(note_props))), as_note);
     let alphanumeric_string = take_until(")");
     let note = map_parser(
         delimited(tag("(note:"), alphanumeric_string, tag(")")),

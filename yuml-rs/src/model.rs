@@ -167,7 +167,6 @@ pub struct Signal {
 
 pub enum SignalType {
     Signal,
-    Note,
 }
 
 pub struct DotElement {

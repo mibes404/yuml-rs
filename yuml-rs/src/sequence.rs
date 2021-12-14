@@ -1,8 +1,6 @@
 use crate::diagram::Diagram;
 use crate::error::{YumlError, YumlResult};
-use crate::model::{
-    Actor, Arrow, Options, Signal, SignalProps, SignalType, Style, YumlExpression, YumlProps,
-};
+use crate::model::{Actor, Arrow, Options, Signal, SignalProps, SignalType, Style, YumlExpression, YumlProps};
 use crate::utils::{extract_bg_from_regex, format_label, record_name, split_yuml_expr};
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -162,9 +160,7 @@ impl Diagram for Sequence {
                 };
 
                 let suffix = if part.ends_with('(') || part.ends_with(')') {
-                    let suffix = &part[part.len() - 1..];
-                    part = &part[0..part.len() - 1];
-                    suffix
+                    &part[part.len() - 1..]
                 } else {
                     ""
                 };
