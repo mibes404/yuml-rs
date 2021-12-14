@@ -46,7 +46,7 @@ pub enum DotFile {
 impl std::fmt::Display for DotFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DotFile::Activity(af) => f.write_str(&af.to_string()),
+            DotFile::Activity(af) => af.fmt(f),
             DotFile::Unsupported => f.write_str(""),
         }
     }

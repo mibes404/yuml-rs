@@ -1,17 +1,6 @@
-use std::fs::{read, read_to_string};
-
 use clap::{App, Arg};
-use yuml_rs::{parse_file, process_yuml_document, render_svg_from_dot};
-
-const SAMPLE_YUML: &str = r#"
-// {type:activity}
-// {generate:true}
-
-(start)-><a>[kettle empty]->(Fill Kettle)->|b|
-<a>[kettle full]->|b|->(Boil Kettle)->|c|
-|b|->(Add Tea Bag)->(Add Milk)->|c|->(Pour Water)
-(Pour Water)->(end)
-"#;
+use std::fs::read;
+use yuml_rs::{parse_file, render_svg_from_dot};
 
 fn main() {
     let matches = App::new("yUML diagram utility")
