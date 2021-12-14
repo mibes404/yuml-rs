@@ -15,8 +15,11 @@ use crate::utils::{build_dot_header, process_directives};
 use error::YumlError;
 use itertools::Itertools;
 use parser::DotFile;
-use std::io::{Read, Write};
-use std::process::{Command, Stdio};
+use std::{
+    fs::File,
+    io::Write,
+    process::{Command, Stdio},
+};
 
 pub fn parse_file(yuml: &[u8]) -> YumlResult<DotFile> {
     let (_, df) = parser::parse_file(yuml).map_err(|e| YumlError::InvalidFile(e.to_string()))?;
@@ -104,14 +107,10 @@ pub fn render_svg_from_dot(dot: &str, target_file: &str) -> YumlResult<()> {
         .write_all(dot.as_bytes())
         .expect("can not stream to dot process");
 
-    let mut output = String::new();
-    dot_process
-        .stdout
-        .unwrap()
-        .read_to_string(&mut output)
-        .expect("can not read from dot process");
+    let mut data_out = dot_process.stdout.unwrap();
+    let mut output_file = File::create(target_file)?;
+    std::io::copy(&mut data_out, &mut output_file)?;
 
-    std::fs::write(target_file, output)?;
     Ok(())
 }
 
