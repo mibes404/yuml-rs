@@ -149,7 +149,7 @@ struct ElementProps<'a> {
 #[derive(Debug)]
 struct ArrowProps<'a> {
     label: Option<Cow<'a, str>>,
-    target_connection_id: RefCell<Option<u8>>,
+    target_connection_id: RefCell<u8>,
     dashed: RefCell<bool>,
 }
 
@@ -166,7 +166,7 @@ impl<'a> ArrowProps<'a> {
     pub fn new(label: Option<Cow<'a, str>>) -> Self {
         Self {
             label,
-            target_connection_id: RefCell::new(None),
+            target_connection_id: RefCell::new(0),
             dashed: RefCell::new(false),
         }
     }
@@ -222,7 +222,7 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
 }
 
 struct Uids<'a> {
-    uids: HashMap<Cow<'a, str>, usize>,
+    uids: HashMap<Cow<'a, str>, (usize, &'a Element<'a>)>,
     uid: usize,
 }
 
@@ -236,16 +236,17 @@ impl<'a> Default for Uids<'a> {
 }
 
 impl<'a> Uids<'a> {
-    fn insert_uid(&mut self, label: Cow<'a, str>) {
+    fn insert_uid(&mut self, label: Cow<'a, str>, e: &'a Element<'a>) -> usize {
         self.uid += 1;
-        self.uids.insert(label, self.uid);
+        self.uids.insert(label, (self.uid, e));
+        self.uid
     }
 
     fn contains_key(&self, key: &Cow<str>) -> bool {
         self.uids.contains_key(key)
     }
 
-    fn get(&'a self, key: &Cow<'a, str>) -> Option<&'a usize> {
+    fn get(&'a self, key: &Cow<'a, str>) -> Option<&'a (usize, &'a Element<'a>)> {
         self.uids.get(key)
     }
 }
@@ -253,20 +254,19 @@ impl<'a> Uids<'a> {
 fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
     let mut uids = Uids::default();
 
-    let mut element_details: Vec<DotElement> = elements
+    let element_details: Vec<ElementDetails> = elements
         .iter()
-        .enumerate()
-        .filter(|(idx, e)| {
+        .filter_map(|e| {
             if let Element::Arrow(_) = &e {
                 // ignore arrows for now
-                false
+                None
             } else {
                 let lbl = e.label();
                 if uids.contains_key(&lbl) {
-                    false
+                    None
                 } else {
-                    uids.insert_uid(lbl);
-                    true
+                    let id = uids.insert_uid(lbl, e);
+                    Some((id, e))
                 }
             }
         })
@@ -275,10 +275,9 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
             element,
             relation: None,
         })
-        .map(|e| DotElement::from(e.borrow()))
         .collect();
 
-    let mut arrow_details: Vec<DotElement> = elements
+    let arrow_details: Vec<ElementDetails> = elements
         .iter()
         .circular_tuple_windows::<(_, _, _)>()
         .filter(|(pre, e, next)| !pre.is_arrow() && !next.is_arrow())
@@ -289,17 +288,23 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
                 None
             }
         })
-        .map(|(pre, e, props, next)| {
+        .filter_map(|(pre, e, props, next)| {
             // if I am an arrow
             if pre.is_note() || next.is_note() {
                 let mut dashed = props.dashed.borrow_mut();
                 *dashed = true;
             }
 
-            let previous_id: usize = uids.get(&pre.label()).copied().unwrap_or_default();
-            let next_id: usize = uids.get(&next.label()).copied().unwrap_or_default();
+            let previous_id = uids.get(&pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
+            let (next_id, next_e) = match uids.get(&next.label()) {
+                Some((idx, e)) => (*idx, e),
+                None => {
+                    // arrow pointing in the void
+                    return None;
+                }
+            };
 
-            let target_connection = if let Element::Parallel(props) = next {
+            let target_connection = if let Element::Parallel(props) = next_e {
                 let mut incoming_connections = props.incoming_connections.borrow_mut();
                 *incoming_connections += 1;
                 *incoming_connections
@@ -308,20 +313,22 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
             };
 
             let mut target_connection_id = props.target_connection_id.borrow_mut();
-            *target_connection_id = Some(target_connection);
+            *target_connection_id = target_connection;
 
             let r = Relation { previous_id, next_id };
-            ElementDetails {
+            Some(ElementDetails {
                 id: None,
                 element: e,
                 relation: Some(r),
-            }
+            })
         })
-        .map(|e| DotElement::from(e.borrow()))
         .collect();
 
-    element_details.append(&mut arrow_details);
     element_details
+        .into_iter()
+        .chain(arrow_details.into_iter())
+        .map(|e| DotElement::from(e.borrow()))
+        .collect()
 }
 
 impl<'a> From<&ElementDetails<'a>> for DotElement {
@@ -341,8 +348,8 @@ impl<'a> From<&ElementDetails<'a>> for DotElement {
                 let target_connection_id = *(props.target_connection_id.borrow());
                 let (uid1, uid2) = if let Some(relation) = &e.relation {
                     let uid1 = format!("A{}", relation.previous_id);
-                    let uid2 = if let Some(tc) = target_connection_id {
-                        format!("A{}:f{}:n", relation.next_id, tc)
+                    let uid2 = if target_connection_id > 0 {
+                        format!("A{}:f{}:n", relation.next_id, target_connection_id)
                     } else {
                         format!("A{}", relation.next_id)
                     };
@@ -388,7 +395,7 @@ impl<'a> From<&Element<'a>> for Dot {
             },
             Element::Parallel(props) => {
                 let incoming_connections = *props.incoming_connections.borrow();
-                let label = (0..=incoming_connections).map(|i| format!("<f{}>", i + 1)).join("|");
+                let label = (1..=incoming_connections).map(|i| format!("<f{}>", i)).join("|");
 
                 Dot {
                     shape: crate::model::DotShape::Record,
