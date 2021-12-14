@@ -6,7 +6,7 @@ use nom::{
         complete::{alphanumeric0, newline},
         streaming::line_ending,
     },
-    combinator::{eof, map, opt},
+    combinator::{eof, map, map_parser, opt},
     multi::{many0, many_till},
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
@@ -30,6 +30,12 @@ fn as_str(b: &[u8]) -> Cow<str> {
 
 fn as_header<'a>(kv: (Cow<'a, str>, Cow<'a, str>)) -> Header<'a> {
     Header { key: kv.0, value: kv.1 }
+}
+
+fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
+    let label = as_str(note.0);
+    let attributes = note.1.map(as_str);
+    Element::Note(NoteProps { label, attributes })
 }
 
 #[derive(Debug, PartialEq)]
@@ -104,7 +110,7 @@ enum Element<'a> {
     Parallel(ElementProps<'a>),
     Decision(ElementProps<'a>),
     Arrow(ArrowProps<'a>),
-    Note(Cow<'a, str>),
+    Note(NoteProps<'a>),
 }
 
 impl<'a> Element<'a> {
@@ -114,7 +120,7 @@ impl<'a> Element<'a> {
             Element::EndTag => Cow::from("end"),
             Element::Activity(props) | Element::Parallel(props) | Element::Decision(props) => props.label.clone(),
             Element::Arrow(details) => details.label.clone().unwrap_or_default(),
-            Element::Note(label) => label.clone(),
+            Element::Note(props) => props.label.clone(),
         }
     }
 
@@ -131,6 +137,12 @@ impl<'a> Element<'a> {
 struct ElementProps<'a> {
     label: Cow<'a, str>,
     incoming_connections: RefCell<u8>,
+}
+
+#[derive(Debug)]
+struct NoteProps<'a> {
+    label: Cow<'a, str>,
+    attributes: Option<Cow<'a, str>>,
 }
 
 #[derive(Debug)]
@@ -175,10 +187,15 @@ struct Relation {
 pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
     let start_tag = map(tag("(start)"), |_s: &[u8]| Element::StartTag);
     let end_tag = map(tag("(end)"), |_s: &[u8]| Element::EndTag);
-    let alphanumeric_string = map(take_until(")"), as_str);
-    let note = map(delimited(tag("(note:"), alphanumeric_string, tag(")")), |s| {
-        Element::Note(s)
-    });
+    let note_string = take_until("}");
+    let note_props = delimited(tag("{"), note_string, tag("}"));
+    let note = take_until("{");
+    let extract_attributes = map(tuple((note, opt(note_props))), |note| as_note(note));
+    let alphanumeric_string = take_until(")");
+    let note = map_parser(
+        delimited(tag("(note:"), alphanumeric_string, tag(")")),
+        extract_attributes,
+    );
     let alphanumeric_string = map(take_until(">"), as_str);
     let decision = map(delimited(tag("<"), alphanumeric_string, tag(">")), |s| {
         Element::Decision(ElementProps::new(s))
@@ -413,14 +430,28 @@ impl<'a> From<&Element<'a>> for Dot {
                 ..Dot::default()
             },
             // A1 [shape="note" , margin="0.20,0.05" , label="You can stick notes on diagrams too!\\{bg:cornsilk\\}" , style="filled" , fillcolor="cornsilk" , fontcolor="black" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]
-            Element::Note(label) => Dot {
-                shape: crate::model::DotShape::Note,
-                height: Some(0.5),
-                margin: Some("0.20,0.05".to_string()),
-                label: Some(label.clone().into_owned()),
-                fontsize: Some(10),
-                ..Dot::default()
-            },
+            Element::Note(props) => {
+                let (fillcolor, style) = if let Some(attr) = &props.attributes {
+                    if attr.starts_with("bg:") {
+                        (Some(attr.trim_start_matches("bg:").to_string()), vec![Style::Filled])
+                    } else {
+                        (None, vec![])
+                    }
+                } else {
+                    (None, vec![])
+                };
+
+                Dot {
+                    shape: crate::model::DotShape::Note,
+                    height: Some(0.5),
+                    margin: Some("0.20,0.05".to_string()),
+                    label: Some(props.label.clone().into_owned()),
+                    fontsize: Some(10),
+                    fillcolor,
+                    style,
+                    ..Dot::default()
+                }
+            }
         }
     }
 }

@@ -11,7 +11,7 @@
 <!-- A1 -->
 <g id="node1" class="node">
 <title>A1</title>
-<polygon fill="none" stroke="black" points="65,-597 0,-597 0,-561 71,-561 71,-591 65,-597"/>
+<polygon fill="cornsilk" stroke="black" points="65,-597 0,-597 0,-561 71,-561 71,-591 65,-597"/>
 <polyline fill="none" stroke="black" points="65,-597 65,-591 "/>
 <polyline fill="none" stroke="black" points="71,-591 65,-591 "/>
 <text text-anchor="middle" x="35.5" y="-576.5" font-family="Helvetica,sans-Serif" font-size="10.00">Make Tea</text>
