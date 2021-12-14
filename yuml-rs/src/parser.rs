@@ -12,18 +12,12 @@ use nom::{
     IResult,
 };
 use std::{
-    borrow::{Borrow, BorrowMut, Cow},
+    borrow::{Borrow, Cow},
     cell::RefCell,
-    cmp::Ordering,
     collections::HashMap,
-    hash::Hash,
-    rc::Rc,
 };
 
-use crate::{
-    model::{ActivityDotFile, Arrow, Dot, DotElement, Style},
-    utils::record_name,
-};
+use crate::model::{ActivityDotFile, Arrow, Dot, DotElement, Style};
 
 pub struct Header<'a> {
     pub key: Cow<'a, str>,
@@ -32,14 +26,6 @@ pub struct Header<'a> {
 
 fn as_str(b: &[u8]) -> Cow<str> {
     String::from_utf8_lossy(b)
-}
-
-fn vec_as_str(v: Vec<char>) -> Option<String> {
-    if v.is_empty() {
-        None
-    } else {
-        Some(v.iter().collect())
-    }
 }
 
 fn as_header<'a>(kv: (Cow<'a, str>, Cow<'a, str>)) -> Header<'a> {
@@ -55,6 +41,15 @@ enum FileType {
 pub enum DotFile {
     Activity(ActivityDotFile),
     Unsupported,
+}
+
+impl std::fmt::Display for DotFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DotFile::Activity(af) => f.write_str(&af.to_string()),
+            DotFile::Unsupported => f.write_str(""),
+        }
+    }
 }
 
 impl From<&Cow<'_, str>> for FileType {
@@ -124,19 +119,11 @@ impl<'a> Element<'a> {
     }
 
     pub fn is_arrow(&self) -> bool {
-        if let Element::Arrow(_) = &self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Element::Arrow(_))
     }
 
     pub fn is_note(&self) -> bool {
-        if let Element::Note(_) = &self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Element::Note(_))
     }
 }
 
@@ -188,6 +175,10 @@ struct Relation {
 pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
     let start_tag = map(tag("(start)"), |_s: &[u8]| Element::StartTag);
     let end_tag = map(tag("(end)"), |_s: &[u8]| Element::EndTag);
+    let alphanumeric_string = map(take_until(")"), as_str);
+    let note = map(delimited(tag("(note:"), alphanumeric_string, tag(")")), |s| {
+        Element::Note(s)
+    });
     let alphanumeric_string = map(take_until(">"), as_str);
     let decision = map(delimited(tag("<"), alphanumeric_string, tag(">")), |s| {
         Element::Decision(ElementProps::new(s))
@@ -206,7 +197,7 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
         Element::Arrow(ArrowProps::new(lbl))
     });
 
-    let parse_element = alt((start_tag, end_tag, decision, activity, parallel, arrow));
+    let parse_element = alt((start_tag, end_tag, decision, note, activity, parallel, arrow));
     let parse_line = many_till(parse_element, line_ending);
     let mut parse_lines = many_till(parse_line, eof);
 
@@ -216,7 +207,7 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
         .flat_map(|(elements, _le)| elements.into_iter())
         .collect();
 
-    let dots = as_dots(elements);
+    let dots = as_dots(&elements);
     let activity_file = ActivityDotFile::new(dots);
     Ok((rest, activity_file))
 }
@@ -234,16 +225,16 @@ impl<'a> Uids<'a> {
         self.uid
     }
 
-    fn contains_key(&self, key: &Cow<str>) -> bool {
+    fn contains_key(&self, key: &str) -> bool {
         self.uids.contains_key(key)
     }
 
-    fn get(&'a self, key: &Cow<'a, str>) -> Option<&'a (usize, &'a Element<'a>)> {
+    fn get(&'a self, key: &str) -> Option<&'a (usize, &'a Element<'a>)> {
         self.uids.get(key)
     }
 }
 
-fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
+fn as_dots(elements: &[Element]) -> Vec<DotElement> {
     let mut uids = Uids::default();
 
     // we must collect to borrow uids in subsequent iterator
@@ -271,10 +262,12 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
         })
         .collect();
 
-    let arrow_details = elements
+    // we must collect to ensure the incoming connections are all processed, before creating the dot file
+    #[allow(clippy::needless_collect)]
+    let arrow_details: Vec<ElementDetails> = elements
         .iter()
         .circular_tuple_windows::<(_, _, _)>()
-        .filter(|(pre, e, next)| !pre.is_arrow() && !next.is_arrow())
+        .filter(|(pre, _e, next)| !pre.is_arrow() && !next.is_arrow())
         .filter_map(|(pre, e, next)| {
             if let Element::Arrow(props) = e {
                 Some((pre, e, props, next))
@@ -315,11 +308,12 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
                 element: e,
                 relation: Some(r),
             })
-        });
+        })
+        .collect();
 
     element_details
         .into_iter()
-        .chain(arrow_details)
+        .chain(arrow_details.into_iter())
         .map(|e| DotElement::from(e.borrow()))
         .collect()
 }
@@ -332,7 +326,7 @@ impl<'a> From<&ElementDetails<'a>> for DotElement {
                 uid: format!("A{}", e.id.unwrap_or_default()),
                 uid2: None,
             },
-            Element::Activity(_lbl) | Element::Parallel(_lbl) | Element::Decision(_lbl) => DotElement {
+            Element::Activity(_) | Element::Parallel(_) | Element::Decision(_) | Element::Note(_) => DotElement {
                 dot: Dot::from(e.element),
                 uid: format!("A{}", e.id.unwrap_or_default()),
                 uid2: None,
@@ -357,7 +351,6 @@ impl<'a> From<&ElementDetails<'a>> for DotElement {
                     uid2: Some(uid2),
                 }
             }
-            Element::Note(_) => todo!(),
         }
     }
 }
@@ -419,7 +412,15 @@ impl<'a> From<&Element<'a>> for Dot {
                 label: props.label.as_ref().map(|s| s.clone().into_owned()),
                 ..Dot::default()
             },
-            Element::Note(_) => todo!(),
+            // A1 [shape="note" , margin="0.20,0.05" , label="You can stick notes on diagrams too!\\{bg:cornsilk\\}" , style="filled" , fillcolor="cornsilk" , fontcolor="black" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]
+            Element::Note(label) => Dot {
+                shape: crate::model::DotShape::Note,
+                height: Some(0.5),
+                margin: Some("0.20,0.05".to_string()),
+                label: Some(label.clone().into_owned()),
+                fontsize: Some(10),
+                ..Dot::default()
+            },
         }
     }
 }

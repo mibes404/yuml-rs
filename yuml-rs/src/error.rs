@@ -24,6 +24,11 @@ pub enum YumlError {
     Format {
         source: std::fmt::Error,
     },
+    Io {
+        source: std::io::Error,
+    },
+    #[display(fmt = "Invalid yUML file: {}", _.0)]
+    InvalidFile(#[error(not(source))] String),
 }
 
 pub type YumlResult<T> = Result<T, YumlError>;

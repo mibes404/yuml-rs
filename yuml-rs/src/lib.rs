@@ -12,9 +12,16 @@ use crate::diagram::Diagram;
 use crate::error::{OptionsError, YumlResult};
 use crate::model::{ChartType, Directions, Options};
 use crate::utils::{build_dot_header, process_directives};
+use error::YumlError;
 use itertools::Itertools;
+use parser::DotFile;
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+
+pub fn parse_file(yuml: &[u8]) -> YumlResult<DotFile> {
+    let (_, df) = parser::parse_file(yuml).map_err(|e| YumlError::InvalidFile(e.to_string()))?;
+    Ok(df)
+}
 
 pub fn process_yuml_document(text: &str, is_dark: bool) -> YumlResult<String> {
     let mut options = Options {
@@ -82,7 +89,7 @@ fn sequence_diagram(lines: &[&str], options: &Options) -> YumlResult<String> {
 /// Render SVG using the "dot" binary.
 /// # Panics
 /// Panics when the "dot" binary is not installed, or when the dot input is invalid.
-pub fn render_svg_from_dot(dot: &str) {
+pub fn render_svg_from_dot(dot: &str, target_file: &str) -> YumlResult<()> {
     // dot -Tsvg sample_dot.txt
     let dot_process = Command::new("dot")
         .arg("-Tsvg")
@@ -104,7 +111,8 @@ pub fn render_svg_from_dot(dot: &str) {
         .read_to_string(&mut output)
         .expect("can not read from dot process");
 
-    println!("{}", output)
+    std::fs::write(target_file, output)?;
+    Ok(())
 }
 
 #[cfg(test)]
