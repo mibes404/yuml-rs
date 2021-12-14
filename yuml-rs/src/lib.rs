@@ -121,10 +121,10 @@ mod tests {
 
     #[test]
     fn test_activity() {
-        let text = include_str!("../test/activity.yuml");
+        let text = include_bytes!("../test/activity.yuml");
         let expected = include_str!("../test/activity.dot");
-        let dot = process_yuml_document(text, false).expect("can not generate activity dot");
-        assert_eq!(dot.trim(), expected.trim());
+        let dot = parse_file(text).expect("can not generate activity dot");
+        assert_eq!(dot.to_string(), expected);
     }
 
     #[test]
