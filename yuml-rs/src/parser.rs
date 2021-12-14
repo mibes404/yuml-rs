@@ -221,18 +221,10 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
     Ok((rest, activity_file))
 }
 
+#[derive(Default)]
 struct Uids<'a> {
     uids: HashMap<Cow<'a, str>, (usize, &'a Element<'a>)>,
     uid: usize,
-}
-
-impl<'a> Default for Uids<'a> {
-    fn default() -> Self {
-        Self {
-            uids: Default::default(),
-            uid: 0,
-        }
-    }
 }
 
 impl<'a> Uids<'a> {
@@ -254,6 +246,8 @@ impl<'a> Uids<'a> {
 fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
     let mut uids = Uids::default();
 
+    // we must collect to borrow uids in subsequent iterator
+    #[allow(clippy::needless_collect)]
     let element_details: Vec<ElementDetails> = elements
         .iter()
         .filter_map(|e| {
@@ -277,7 +271,7 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
         })
         .collect();
 
-    let arrow_details: Vec<ElementDetails> = elements
+    let arrow_details = elements
         .iter()
         .circular_tuple_windows::<(_, _, _)>()
         .filter(|(pre, e, next)| !pre.is_arrow() && !next.is_arrow())
@@ -321,12 +315,11 @@ fn as_dots(elements: Vec<Element>) -> Vec<DotElement> {
                 element: e,
                 relation: Some(r),
             })
-        })
-        .collect();
+        });
 
     element_details
         .into_iter()
-        .chain(arrow_details.into_iter())
+        .chain(arrow_details)
         .map(|e| DotElement::from(e.borrow()))
         .collect()
 }
