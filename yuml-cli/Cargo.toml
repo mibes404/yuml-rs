@@ -12,7 +12,7 @@ keywords = ["yuml"]
 categories = ["parser-implementations", "rendering::data-formats"]
 
 [dependencies]
-clap="2"
+clap = "2"
 
 # local
 yuml-rs = { path = "../yuml-rs" }
