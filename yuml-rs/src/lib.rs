@@ -18,9 +18,11 @@ use std::{
 
 /// Generate the interediate `DotFile` from the yUML input.
 /// Usage:
-/// ```rust,nocompile
+/// ```rust,no_run
 /// use std::fs::read;
-/// let yuml = read(input_file).expect("can not read input file");
+/// use yuml_rs::parse_yuml;
+///
+/// let yuml = read("activity.yaml").expect("can not read input file");
 /// let dot = parse_yuml(&yuml).expect("invalid yUML");
 /// ```
 pub fn parse_yuml(yuml: &[u8]) -> YumlResult<DotFile> {
@@ -30,9 +32,11 @@ pub fn parse_yuml(yuml: &[u8]) -> YumlResult<DotFile> {
 
 /// Render SVG using the "dot" binary, taking a valid dot-description as input.
 /// Usage:
-/// ```rust,nocompile
+/// ```rust,no_run
 /// use std::fs::read;
-/// let yuml = read(input_file).expect("can not read input file");
+/// use yuml_rs::{parse_yuml, render_svg_from_dot};
+///
+/// let yuml = read("activity.yaml").expect("can not read input file");
 /// let dot = parse_yuml(&yuml).expect("invalid yUML");
 /// render_svg_from_dot(&dot.to_string()).expect("can not generate SVG");
 /// ```
