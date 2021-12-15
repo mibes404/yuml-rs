@@ -1,3 +1,5 @@
+use crate::model::activity::{ArrowProps, Element, ElementDetails, ElementProps, NoteProps, Relation};
+use crate::model::dot::{ActivityDotFile, Arrow, ChartType, Directions, Dot, DotElement, DotShape, Options, Style};
 use itertools::Itertools;
 use nom::{
     branch::alt,
@@ -11,13 +13,8 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::{
-    borrow::{Borrow, Cow},
-    cell::RefCell,
-    collections::HashMap,
-};
-
-use crate::model::{ActivityDotFile, Arrow, Dot, DotElement, Style};
+use std::borrow::Borrow;
+use std::{borrow::Cow, collections::HashMap};
 
 pub struct Header<'a> {
     pub key: Cow<'a, str>,
@@ -38,12 +35,6 @@ fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
     Element::Note(NoteProps { label, attributes })
 }
 
-#[derive(Debug, PartialEq)]
-enum FileType {
-    Activity,
-    Unsupported,
-}
-
 pub enum DotFile {
     Activity(ActivityDotFile),
     Unsupported,
@@ -58,25 +49,21 @@ impl std::fmt::Display for DotFile {
     }
 }
 
-impl From<&Cow<'_, str>> for FileType {
-    fn from(c: &Cow<str>) -> Self {
-        match c.as_ref() {
-            "activity" => FileType::Activity,
-            _ => FileType::Unsupported,
+fn determine_file_options(headers: &[Header]) -> Options {
+    let mut options = Options::default();
+
+    for h in headers.iter() {
+        match h.key.as_ref() {
+            "type" => options.chart_type = ChartType::try_from(h.value.as_ref()).ok(),
+            "direction" => options.dir = Directions::try_from(h.value.as_ref()).unwrap_or_default(),
+            _ => { /* ignore unsupported headers */ }
         }
     }
+
+    options
 }
 
-fn determine_filetype(headers: &[Header]) -> FileType {
-    headers
-        .iter()
-        .filter(|h| h.key.as_ref() == "type")
-        .map(|h| FileType::from(&h.value))
-        .next()
-        .unwrap_or(FileType::Unsupported)
-}
-
-pub fn parse_file(yuml: &[u8]) -> IResult<&[u8], DotFile> {
+pub fn parse_yuml(yuml: &[u8]) -> IResult<&[u8], DotFile> {
     let alphanumeric_string = map(alphanumeric0, as_str);
     let alphanumeric_string_2 = map(alphanumeric0, as_str);
     let parse_key_value = separated_pair(alphanumeric_string, tag(":"), alphanumeric_string_2);
@@ -86,105 +73,20 @@ pub fn parse_file(yuml: &[u8]) -> IResult<&[u8], DotFile> {
     let mut parse_headers = many0(parse_header);
 
     let (rest, headers) = parse_headers(yuml)?;
+    let options = determine_file_options(&headers);
 
-    assert_eq!(headers.len(), 2);
-    let file_type = determine_filetype(&headers);
-    assert_eq!(file_type, FileType::Activity);
-
-    let (rest, result) = match file_type {
-        FileType::Activity => {
-            let (rest, activity_file) = parse_activity(rest)?;
+    let (rest, result) = match options.chart_type {
+        Some(ChartType::Activity) => {
+            let (rest, activity_file) = parse_activity(rest, &options)?;
             (rest, DotFile::Activity(activity_file))
         }
-        FileType::Unsupported => (rest, DotFile::Unsupported),
+        _ => (rest, DotFile::Unsupported),
     };
 
     Ok((rest, result))
 }
 
-#[derive(Debug)]
-enum Element<'a> {
-    StartTag,
-    EndTag,
-    Activity(ElementProps<'a>),
-    Parallel(ElementProps<'a>),
-    Decision(ElementProps<'a>),
-    Arrow(ArrowProps<'a>),
-    Note(NoteProps<'a>),
-}
-
-impl<'a> Element<'a> {
-    pub fn label(&self) -> Cow<'a, str> {
-        match self {
-            Element::StartTag => Cow::from("start"),
-            Element::EndTag => Cow::from("end"),
-            Element::Activity(props) | Element::Parallel(props) | Element::Decision(props) => props.label.clone(),
-            Element::Arrow(details) => details.label.clone().unwrap_or_default(),
-            Element::Note(props) => props.label.clone(),
-        }
-    }
-
-    pub fn is_arrow(&self) -> bool {
-        matches!(self, Element::Arrow(_))
-    }
-
-    pub fn is_note(&self) -> bool {
-        matches!(self, Element::Note(_))
-    }
-}
-
-#[derive(Debug)]
-struct ElementProps<'a> {
-    label: Cow<'a, str>,
-    incoming_connections: RefCell<u8>,
-}
-
-#[derive(Debug)]
-struct NoteProps<'a> {
-    label: Cow<'a, str>,
-    attributes: Option<Cow<'a, str>>,
-}
-
-#[derive(Debug)]
-struct ArrowProps<'a> {
-    label: Option<Cow<'a, str>>,
-    target_connection_id: RefCell<u8>,
-    dashed: RefCell<bool>,
-}
-
-impl<'a> ElementProps<'a> {
-    pub fn new(label: Cow<'a, str>) -> Self {
-        Self {
-            label,
-            incoming_connections: RefCell::new(0),
-        }
-    }
-}
-
-impl<'a> ArrowProps<'a> {
-    pub fn new(label: Option<Cow<'a, str>>) -> Self {
-        Self {
-            label,
-            target_connection_id: RefCell::new(0),
-            dashed: RefCell::new(false),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct ElementDetails<'a> {
-    id: Option<usize>,
-    element: &'a Element<'a>,
-    relation: Option<Relation>,
-}
-
-#[derive(Debug)]
-struct Relation {
-    previous_id: usize,
-    next_id: usize,
-}
-
-pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
+pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a [u8], ActivityDotFile> {
     let start_tag = map(tag("(start)"), |_s: &[u8]| Element::StartTag);
     let end_tag = map(tag("(end)"), |_s: &[u8]| Element::EndTag);
     let note_string = take_until("}");
@@ -211,7 +113,7 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
     let alphanumeric_string = map(take_until("]"), as_str);
     let label = map(delimited(tag("["), alphanumeric_string, tag("]")), |s| s);
     let arrow = map(tuple((opt(label), tag("->"))), |(lbl, _)| {
-        Element::Arrow(ArrowProps::new(lbl))
+        Element::Arrow(ArrowProps::new(lbl, &options.dir))
     });
 
     let parse_element = alt((start_tag, end_tag, decision, note, activity, parallel, arrow));
@@ -225,7 +127,7 @@ pub fn parse_activity(yuml: &[u8]) -> IResult<&[u8], ActivityDotFile> {
         .collect();
 
     let dots = as_dots(&elements);
-    let activity_file = ActivityDotFile::new(dots);
+    let activity_file = ActivityDotFile::new(dots, options);
     Ok((rest, activity_file))
 }
 
@@ -353,7 +255,12 @@ impl<'a> From<&ElementDetails<'a>> for DotElement {
                 let (uid1, uid2) = if let Some(relation) = &e.relation {
                     let uid1 = format!("A{}", relation.previous_id);
                     let uid2 = if target_connection_id > 0 {
-                        format!("A{}:f{}:n", relation.next_id, target_connection_id)
+                        format!(
+                            "A{}:f{}:{}",
+                            relation.next_id,
+                            target_connection_id,
+                            props.chart_direction.head_port()
+                        )
                     } else {
                         format!("A{}", relation.next_id)
                     };
@@ -376,19 +283,19 @@ impl<'a> From<&Element<'a>> for Dot {
     fn from(e: &Element<'a>) -> Self {
         match e {
             Element::StartTag => Dot {
-                shape: crate::model::DotShape::Circle,
+                shape: DotShape::Circle,
                 height: Some(0.3),
                 width: Some(0.3),
                 ..Dot::default()
             },
             Element::EndTag => Dot {
-                shape: crate::model::DotShape::DoubleCircle,
+                shape: DotShape::DoubleCircle,
                 height: Some(0.3),
                 width: Some(0.3),
                 ..Dot::default()
             },
             Element::Activity(props) => Dot {
-                shape: crate::model::DotShape::Rectangle,
+                shape: DotShape::Rectangle,
                 height: Some(0.5),
                 margin: Some("0.20,0.05".to_string()),
                 label: Some(props.label.clone().into_owned()),
@@ -401,7 +308,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 let label = (1..=incoming_connections).map(|i| format!("<f{}>", i)).join("|");
 
                 Dot {
-                    shape: crate::model::DotShape::Record,
+                    shape: DotShape::Record,
                     height: Some(0.05),
                     width: Some(0.5),
                     penwidth: Some(4),
@@ -412,7 +319,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 }
             }
             Element::Decision(props) => Dot {
-                shape: crate::model::DotShape::Diamond,
+                shape: DotShape::Diamond,
                 height: Some(0.5),
                 width: Some(0.5),
                 label: Some(props.label.clone().into_owned()),
@@ -420,7 +327,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 ..Dot::default()
             },
             Element::Arrow(props) => Dot {
-                shape: crate::model::DotShape::Edge,
+                shape: DotShape::Edge,
                 style: vec![Style::Solid],
                 dir: Some("both".to_string()),
                 arrowhead: Some(Arrow::Vee),
@@ -442,7 +349,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 };
 
                 Dot {
-                    shape: crate::model::DotShape::Note,
+                    shape: DotShape::Note,
                     height: Some(0.5),
                     margin: Some("0.20,0.05".to_string()),
                     label: Some(props.label.clone().into_owned()),
@@ -463,7 +370,7 @@ mod tests {
     #[test]
     fn test_parse_activity() {
         let yuml = include_bytes!("../test/activity.yuml");
-        if let (rest, DotFile::Activity(activity_file)) = parse_file(yuml).expect("invalid file") {
+        if let (rest, DotFile::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);
         } else {

@@ -12,3 +12,10 @@ regex = "1.5"
 derive_more = "0.99"
 itertools = "0.10"
 nom = "7"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "parser"
+harness = false

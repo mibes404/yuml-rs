@@ -3,15 +3,7 @@ use itertools::Itertools;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Write};
 
-pub struct BgAndNote {
-    pub bg: Option<String>,
-    pub is_note: bool,
-    pub luma: u8,
-    pub font_color: Option<String>,
-    pub part: String,
-}
-
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ChartType {
     Class,
     UseCase,
@@ -22,11 +14,17 @@ pub enum ChartType {
     Sequence,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Directions {
     LeftToRight,
     RightToLeft,
     TopDown,
+}
+
+impl Default for Directions {
+    fn default() -> Self {
+        Directions::TopDown
+    }
 }
 
 impl Display for Directions {
@@ -96,6 +94,7 @@ impl TryFrom<&str> for ChartType {
     }
 }
 
+#[derive(Default)]
 pub struct Options {
     pub dir: Directions,
     pub generate: bool,
@@ -156,19 +155,6 @@ pub struct Dot {
     pub labeldistance: Option<u32>,
 }
 
-pub struct Signal {
-    pub signal_type: SignalType,
-    pub actor_a: Option<Actor>,
-    pub actor_b: Option<Actor>,
-    pub line_type: Option<Style>,
-    pub arrow_type: Option<Arrow>,
-    pub message: Option<String>,
-}
-
-pub enum SignalType {
-    Signal,
-}
-
 pub struct DotElement {
     pub uid: String,
     pub uid2: Option<String>,
@@ -205,11 +191,12 @@ impl Display for DotElement {
 
 pub struct ActivityDotFile {
     dots: Vec<DotElement>,
+    dir: Directions,
 }
 
 impl ActivityDotFile {
-    pub fn new(dots: Vec<DotElement>) -> Self {
-        ActivityDotFile { dots }
+    pub fn new(dots: Vec<DotElement>, options: &Options) -> Self {
+        ActivityDotFile { dots, dir: options.dir }
     }
 }
 
@@ -220,31 +207,12 @@ impl Display for ActivityDotFile {
         f.write_str("  node [ shape=none, margin=0, color=black, fontcolor=black, fontname=Helvetica ]\n")?;
         f.write_str("  edge [ color=black, fontcolor=black, fontname=Helvetica ]\n")?;
         f.write_str("    ranksep = 0.5\n")?;
-        f.write_str("    rankdir = TB\n")?;
+        f.write_fmt(format_args!("    rankdir = {}\n", self.dir))?;
         for dot in &self.dots {
             f.write_str(&dot.to_string())?;
             f.write_char('\n')?;
         }
         f.write_char('}')
-    }
-}
-
-#[derive(PartialEq)]
-pub enum YumlProps {
-    NoteOrRecord(bool, String, String),
-    Diamond,
-    MRecord,
-    Edge(EdgeProps),
-    Signal(SignalProps),
-}
-
-impl YumlProps {
-    pub fn note_or_record_shape(is_note: bool) -> DotShape {
-        if is_note {
-            DotShape::Note
-        } else {
-            DotShape::Record
-        }
     }
 }
 
@@ -306,44 +274,6 @@ impl Display for Style {
             Style::Rounded => f.write_str("rounded"),
             Style::Invis => f.write_str("invis"),
             Style::Async => f.write_str("async"),
-        }
-    }
-}
-
-pub struct YumlExpression {
-    pub label: String,
-    pub props: YumlProps,
-}
-
-impl Display for YumlExpression {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.label)?;
-        f.write_str(": ")?;
-        match self.props {
-            YumlProps::NoteOrRecord(is_note, _, _) => {
-                if is_note {
-                    f.write_str("note")
-                } else {
-                    f.write_str("record")
-                }
-            }
-            YumlProps::Diamond => f.write_str("diamond"),
-            YumlProps::MRecord => f.write_str("mrecord"),
-            YumlProps::Edge(_) => f.write_str("edge"),
-            YumlProps::Signal(_) => f.write_str("signal"),
-        }
-    }
-}
-
-impl From<BgAndNote> for YumlExpression {
-    fn from(ret: BgAndNote) -> Self {
-        YumlExpression {
-            label: ret.part,
-            props: YumlProps::NoteOrRecord(
-                ret.is_note,
-                ret.bg.unwrap_or_default(),
-                ret.font_color.unwrap_or_default(),
-            ),
         }
     }
 }

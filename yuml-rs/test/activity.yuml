@@ -1,5 +1,6 @@
 // {type:activity}
 // {generate:true}
+// {direction:topDown}
 
 (note:Make Tea{bg:cornsilk})
 (start)-><a>[kettle empty]->(Fill Kettle)->|b|
