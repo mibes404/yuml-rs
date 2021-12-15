@@ -74,9 +74,10 @@ pub fn parse_yuml(yuml: &[u8]) -> IResult<&[u8], DotFile> {
     let parse_header = delimited(tag("{"), parse_key_value, tag("}"));
     let parse_header = terminated(preceded(tag("// "), parse_header), newline);
     let parse_header = map(parse_header, as_header);
-    let mut parse_headers = many0(parse_header);
+    let prefix_empty_lines = many0(line_ending);
+    let mut parse_headers = tuple((prefix_empty_lines, many0(parse_header)));
 
-    let (rest, headers) = parse_headers(yuml)?;
+    let (rest, (_, headers)) = parse_headers(yuml)?;
     let options = determine_file_options(&headers);
 
     let (rest, result) = match options.chart_type {
@@ -249,6 +250,17 @@ mod tests {
     #[test]
     fn test_parse_activity() {
         let yuml = include_bytes!("../test/activity.yuml");
+        if let (rest, DotFile::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
+            assert!(rest.is_empty());
+            println!("{}", activity_file);
+        } else {
+            panic!("Invalid file");
+        }
+    }
+
+    #[test]
+    fn test_parse_big_activity() {
+        let yuml = include_bytes!("../test/big_activity.yuml");
         if let (rest, DotFile::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);
