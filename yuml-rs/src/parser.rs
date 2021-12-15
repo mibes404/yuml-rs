@@ -1,5 +1,7 @@
-use crate::model::activity::{ArrowProps, Element, ElementDetails, ElementProps, NoteProps, Relation};
-use crate::model::dot::{ActivityDotFile, Arrow, ChartType, Directions, Dot, DotElement, DotShape, Options, Style};
+use crate::model::{
+    activity::{ArrowProps, Element, ElementDetails, ElementProps, NoteProps, Relation},
+    dot::{ActivityDotFile, ChartType, Directions, DotElement, Options},
+};
 use itertools::Itertools;
 use nom::{
     branch::alt,
@@ -13,8 +15,10 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::borrow::Borrow;
-use std::{borrow::Cow, collections::HashMap};
+use std::{
+    borrow::{Borrow, Cow},
+    collections::HashMap,
+};
 
 pub struct Header<'a> {
     pub key: Cow<'a, str>,
@@ -235,132 +239,6 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         .chain(arrow_details.into_iter())
         .map(|e| DotElement::from(e.borrow()))
         .collect()
-}
-
-impl<'a> From<&ElementDetails<'a>> for DotElement {
-    fn from(e: &ElementDetails<'a>) -> Self {
-        match e.element {
-            Element::StartTag | Element::EndTag => DotElement {
-                dot: Dot::from(e.element),
-                uid: format!("A{}", e.id.unwrap_or_default()),
-                uid2: None,
-            },
-            Element::Activity(_) | Element::Parallel(_) | Element::Decision(_) | Element::Note(_) => DotElement {
-                dot: Dot::from(e.element),
-                uid: format!("A{}", e.id.unwrap_or_default()),
-                uid2: None,
-            },
-            Element::Arrow(props) => {
-                let target_connection_id = *(props.target_connection_id.borrow());
-                let (uid1, uid2) = if let Some(relation) = &e.relation {
-                    let uid1 = format!("A{}", relation.previous_id);
-                    let uid2 = if target_connection_id > 0 {
-                        format!(
-                            "A{}:f{}:{}",
-                            relation.next_id,
-                            target_connection_id,
-                            props.chart_direction.head_port()
-                        )
-                    } else {
-                        format!("A{}", relation.next_id)
-                    };
-                    (uid1, uid2)
-                } else {
-                    ("A0".to_string(), "A0".to_string())
-                };
-
-                DotElement {
-                    dot: Dot::from(e.element),
-                    uid: uid1,
-                    uid2: Some(uid2),
-                }
-            }
-        }
-    }
-}
-
-impl<'a> From<&Element<'a>> for Dot {
-    fn from(e: &Element<'a>) -> Self {
-        match e {
-            Element::StartTag => Dot {
-                shape: DotShape::Circle,
-                height: Some(0.3),
-                width: Some(0.3),
-                ..Dot::default()
-            },
-            Element::EndTag => Dot {
-                shape: DotShape::DoubleCircle,
-                height: Some(0.3),
-                width: Some(0.3),
-                ..Dot::default()
-            },
-            Element::Activity(props) => Dot {
-                shape: DotShape::Rectangle,
-                height: Some(0.5),
-                margin: Some("0.20,0.05".to_string()),
-                label: Some(props.label.clone().into_owned()),
-                style: vec![Style::Rounded],
-                fontsize: Some(10),
-                ..Dot::default()
-            },
-            Element::Parallel(props) => {
-                let incoming_connections = *props.incoming_connections.borrow();
-                let label = (1..=incoming_connections).map(|i| format!("<f{}>", i)).join("|");
-
-                Dot {
-                    shape: DotShape::Record,
-                    height: Some(0.05),
-                    width: Some(0.5),
-                    penwidth: Some(4),
-                    label: Some(label),
-                    style: vec![Style::Filled],
-                    fontsize: Some(1),
-                    ..Dot::default()
-                }
-            }
-            Element::Decision(props) => Dot {
-                shape: DotShape::Diamond,
-                height: Some(0.5),
-                width: Some(0.5),
-                label: Some(props.label.clone().into_owned()),
-                fontsize: Some(0),
-                ..Dot::default()
-            },
-            Element::Arrow(props) => Dot {
-                shape: DotShape::Edge,
-                style: vec![Style::Solid],
-                dir: Some("both".to_string()),
-                arrowhead: Some(Arrow::Vee),
-                fontsize: Some(10),
-                labeldistance: Some(1),
-                label: props.label.as_ref().map(|s| s.clone().into_owned()),
-                ..Dot::default()
-            },
-            // A1 [shape="note" , margin="0.20,0.05" , label="You can stick notes on diagrams too!\\{bg:cornsilk\\}" , style="filled" , fillcolor="cornsilk" , fontcolor="black" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]
-            Element::Note(props) => {
-                let (fillcolor, style) = if let Some(attr) = &props.attributes {
-                    if attr.starts_with("bg:") {
-                        (Some(attr.trim_start_matches("bg:").to_string()), vec![Style::Filled])
-                    } else {
-                        (None, vec![])
-                    }
-                } else {
-                    (None, vec![])
-                };
-
-                Dot {
-                    shape: DotShape::Note,
-                    height: Some(0.5),
-                    margin: Some("0.20,0.05".to_string()),
-                    label: Some(props.label.clone().into_owned()),
-                    fontsize: Some(10),
-                    fillcolor,
-                    style,
-                    ..Dot::default()
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
