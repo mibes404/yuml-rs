@@ -1,3 +1,8 @@
+//! Parse yUML as SVG using the "dot" binary from the ["graphviz"](https://graphviz.org/download/) toolset.
+//!
+//! Based on the Javascript version from Jaime Olivares: [yuml-diagram](https://github.com/jaime-olivares/yuml-diagram).
+//! At the moment only Activity diagrams are supported, with no guarantees that the other variations will be added in the future.
+
 mod error;
 mod model;
 mod parser;
@@ -11,12 +16,26 @@ use std::{
     process::{Command, Stdio},
 };
 
+/// Generate the interediate `DotFile` from the yUML input.
+/// Usage:
+/// ```rust,nocompile
+/// use std::fs::read;
+/// let yuml = read(input_file).expect("can not read input file");
+/// let dot = parse_yuml(&yuml).expect("invalid yUML");
+/// ```
 pub fn parse_yuml(yuml: &[u8]) -> YumlResult<DotFile> {
     let (_, df) = parser::parse_yuml(yuml).map_err(|e| YumlError::InvalidFile(e.to_string()))?;
     Ok(df)
 }
 
-/// Render SVG using the "dot" binary.
+/// Render SVG using the "dot" binary, taking a valid dot-description as input.
+/// Usage:
+/// ```rust,nocompile
+/// use std::fs::read;
+/// let yuml = read(input_file).expect("can not read input file");
+/// let dot = parse_yuml(&yuml).expect("invalid yUML");
+/// render_svg_from_dot(&dot.to_string()).expect("can not generate SVG");
+/// ```
 /// # Panics
 /// Panics when the "dot" binary is not installed, or when the dot input is invalid.
 pub fn render_svg_from_dot(dot: &str) -> YumlResult<impl std::io::Read> {
@@ -38,6 +57,7 @@ pub fn render_svg_from_dot(dot: &str) -> YumlResult<impl std::io::Read> {
     Ok(data_out)
 }
 
+/// Similar to `render_svg_from_dot` but writes the output directly to a file
 pub fn write_svg_from_dot(dot: &str, target_file: &str) -> YumlResult<()> {
     let mut data_out = render_svg_from_dot(dot)?;
     let mut output_file = File::create(target_file)?;
