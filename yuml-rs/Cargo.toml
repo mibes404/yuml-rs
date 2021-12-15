@@ -9,7 +9,7 @@ readme = "README.md"
 documentation = "https://docs.rs/yuml-rs"
 repository = "https://github.com/mibes404/yuml-rs"
 keywords = ["yuml"]
-categories = ["parser"]
+categories = ["parser-implementations", "rendering::data-formats"]
 
 [dependencies]
 lazy_static = "1.4"
