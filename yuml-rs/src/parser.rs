@@ -114,11 +114,12 @@ pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&
     let parallel = map(delimited(tag("|"), alphanumeric_string, tag("|")), |s| {
         Element::Parallel(ElementProps::new(s))
     });
-    let alphanumeric_string = map(take_until("]"), as_str);
-    let label = map(delimited(tag("["), alphanumeric_string, tag("]")), |s| s);
-    let arrow = map(tuple((opt(label), tag("->"))), |(lbl, _)| {
-        Element::Arrow(ArrowProps::new(lbl, &options.dir))
+    let alphanumeric_string = map(take_until("->"), as_str);
+    let arrow_w_label = map(terminated(alphanumeric_string, tag("->")), |lbl| {
+        Element::Arrow(ArrowProps::new(Some(lbl), &options.dir))
     });
+    let arrow_wo_label = map(tag("->"), |_| Element::Arrow(ArrowProps::new(None, &options.dir)));
+    let arrow = alt((arrow_wo_label, arrow_w_label));
 
     let parse_element = alt((start_tag, end_tag, decision, note, activity, parallel, arrow));
     let parse_line = many_till(parse_element, line_ending);
