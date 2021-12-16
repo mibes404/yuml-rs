@@ -8,5 +8,7 @@
 [Order]-1>[DeliveryMethod]
 [Order]*-*>[Product|EAN_Code|promo_price()]
 [Category]<->[Product]
+[Category]<-<>[Product]
+[Customer]uses-.->[PaymentStrategy]
 [DeliveryMethod]^[National]
 [DeliveryMethod]^[International]

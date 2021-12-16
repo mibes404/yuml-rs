@@ -1,4 +1,8 @@
-use super::dot::{Arrow, Directions, Dot, DotElement, DotShape, Style};
+use super::{
+    dot::{Arrow, Directions, Dot, DotElement, DotShape, Style},
+    shared::NoteProps,
+};
+use crate::parser::utils::as_str;
 use itertools::Itertools;
 use std::{borrow::Cow, cell::RefCell};
 
@@ -11,6 +15,12 @@ pub enum Element<'a> {
     Decision(ElementProps<'a>),
     Arrow(ArrowProps<'a>),
     Note(NoteProps<'a>),
+}
+
+pub fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
+    let label = as_str(note.0);
+    let attributes = note.1.map(as_str);
+    Element::Note(NoteProps { label, attributes })
 }
 
 impl<'a> Element<'a> {
@@ -37,12 +47,6 @@ impl<'a> Element<'a> {
 pub struct ElementProps<'a> {
     pub label: Cow<'a, str>,
     pub incoming_connections: RefCell<u8>,
-}
-
-#[derive(Debug)]
-pub struct NoteProps<'a> {
-    pub label: Cow<'a, str>,
-    pub attributes: Option<Cow<'a, str>>,
 }
 
 #[derive(Debug)]

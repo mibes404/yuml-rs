@@ -189,24 +189,33 @@ impl Display for DotElement {
     }
 }
 
-pub struct ActivityDotFile {
+pub struct DotFile {
     dots: Vec<DotElement>,
     dir: Directions,
+    sep: f32,
 }
 
-impl ActivityDotFile {
+impl DotFile {
     pub fn new(dots: Vec<DotElement>, options: &Options) -> Self {
-        ActivityDotFile { dots, dir: options.dir }
+        DotFile {
+            dots,
+            dir: options.dir,
+            sep: 0.5,
+        }
+    }
+
+    pub fn set_sep(&mut self, sep: f32) {
+        self.sep = sep;
     }
 }
 
-impl Display for ActivityDotFile {
+impl Display for DotFile {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("digraph G {\n")?;
         f.write_str("  graph [ bgcolor=transparent, fontname=Helvetica ]\n")?;
         f.write_str("  node [ shape=none, margin=0, color=black, fontcolor=black, fontname=Helvetica ]\n")?;
         f.write_str("  edge [ color=black, fontcolor=black, fontname=Helvetica ]\n")?;
-        f.write_str("    ranksep = 0.5\n")?;
+        f.write_fmt(format_args!("    ranksep = {}\n", self.sep))?;
         f.write_fmt(format_args!("    rankdir = {}\n", self.dir))?;
         for dot in &self.dots {
             f.write_str(&dot.to_string())?;

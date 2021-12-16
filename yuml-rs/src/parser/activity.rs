@@ -1,97 +1,21 @@
-use crate::model::{
-    activity::{ArrowProps, Element, ElementDetails, ElementProps, NoteProps, Relation},
-    dot::{ActivityDotFile, ChartType, Directions, DotElement, Options},
-};
-use itertools::Itertools;
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_until},
-    character::{
-        complete::{alphanumeric0, newline},
-        streaming::line_ending,
-    },
-    combinator::{eof, map, map_parser, opt},
-    multi::{many0, many_till},
-    sequence::{delimited, preceded, separated_pair, terminated, tuple},
-    IResult,
-};
-use std::{
-    borrow::{Borrow, Cow},
-    collections::HashMap,
-};
+use super::*;
+use crate::model::activity::{as_note, ArrowProps, Element, ElementDetails, ElementProps, Relation};
 
-pub struct Header<'a> {
-    pub key: Cow<'a, str>,
-    pub value: Cow<'a, str>,
-}
+/*
+Syntax as specified in yuml.me
+Start	           (start)
+End	               (end)
+Activity           (Find Products)
+Flow	           (start)->(Find Products)
+Multiple Assoc.    (start)->(Find Products)->(end)
+Decisions          (start)-><d1>
+Decisions w/Label  (start)-><d1>logged in->(Show Dashboard), <d1>not logged in->(Show Login Page)
+Parallel	       (Action1)->|a|,(Action 2)->|a|
+Note               (Action1)-(note: A note message here)
+Comment            // Comments
+*/
 
-fn as_str(b: &[u8]) -> Cow<str> {
-    String::from_utf8_lossy(b)
-}
-
-fn as_header<'a>(kv: (Cow<'a, str>, Cow<'a, str>)) -> Header<'a> {
-    Header { key: kv.0, value: kv.1 }
-}
-
-fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
-    let label = as_str(note.0);
-    let attributes = note.1.map(as_str);
-    Element::Note(NoteProps { label, attributes })
-}
-
-pub enum DotFile {
-    Activity(ActivityDotFile),
-    Unsupported,
-}
-
-impl std::fmt::Display for DotFile {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DotFile::Activity(af) => af.fmt(f),
-            DotFile::Unsupported => f.write_str(""),
-        }
-    }
-}
-
-fn determine_file_options(headers: &[Header]) -> Options {
-    let mut options = Options::default();
-
-    for h in headers.iter() {
-        match h.key.as_ref() {
-            "type" => options.chart_type = ChartType::try_from(h.value.as_ref()).ok(),
-            "direction" => options.dir = Directions::try_from(h.value.as_ref()).unwrap_or_default(),
-            _ => { /* ignore unsupported headers */ }
-        }
-    }
-
-    options
-}
-
-pub fn parse_yuml(yuml: &[u8]) -> IResult<&[u8], DotFile> {
-    let alphanumeric_string = map(alphanumeric0, as_str);
-    let alphanumeric_string_2 = map(alphanumeric0, as_str);
-    let parse_key_value = separated_pair(alphanumeric_string, tag(":"), alphanumeric_string_2);
-    let parse_header = delimited(tag("{"), parse_key_value, tag("}"));
-    let parse_header = terminated(preceded(tag("// "), parse_header), newline);
-    let parse_header = map(parse_header, as_header);
-    let prefix_empty_lines = many0(line_ending);
-    let mut parse_headers = tuple((prefix_empty_lines, many0(parse_header)));
-
-    let (rest, (_, headers)) = parse_headers(yuml)?;
-    let options = determine_file_options(&headers);
-
-    let (rest, result) = match options.chart_type {
-        Some(ChartType::Activity) => {
-            let (rest, activity_file) = parse_activity(rest, &options)?;
-            (rest, DotFile::Activity(activity_file))
-        }
-        _ => (rest, DotFile::Unsupported),
-    };
-
-    Ok((rest, result))
-}
-
-pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a [u8], ActivityDotFile> {
+pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a [u8], DotFile> {
     let start_tag = map(tag("(start)"), |_s: &[u8]| Element::StartTag);
     let end_tag = map(tag("(end)"), |_s: &[u8]| Element::EndTag);
     let note_string = take_until("}");
@@ -133,7 +57,7 @@ pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&
         .collect();
 
     let dots = as_dots(&elements);
-    let activity_file = ActivityDotFile::new(dots, options);
+    let activity_file = DotFile::new(dots, options);
     Ok((rest, activity_file))
 }
 
@@ -249,8 +173,8 @@ mod tests {
 
     #[test]
     fn test_parse_activity() {
-        let yuml = include_bytes!("../test/activity.yuml");
-        if let (rest, DotFile::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
+        let yuml = include_bytes!("../../test/activity.yuml");
+        if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);
         } else {
@@ -260,8 +184,8 @@ mod tests {
 
     #[test]
     fn test_parse_big_activity() {
-        let yuml = include_bytes!("../test/big_activity.yuml");
-        if let (rest, DotFile::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
+        let yuml = include_bytes!("../../test/big_activity.yuml");
+        if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);
         } else {

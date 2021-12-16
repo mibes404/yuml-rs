@@ -9,7 +9,7 @@ mod parser;
 
 use crate::error::YumlResult;
 use error::YumlError;
-use parser::DotFile;
+use parser::ParsedYuml;
 use std::{
     fs::File,
     io::Write,
@@ -25,7 +25,7 @@ use std::{
 /// let yuml = read("activity.yaml").expect("can not read input file");
 /// let dot = parse_yuml(&yuml).expect("invalid yUML");
 /// ```
-pub fn parse_yuml(yuml: &[u8]) -> YumlResult<DotFile> {
+pub fn parse_yuml(yuml: &[u8]) -> YumlResult<ParsedYuml> {
     let (_, df) = parser::parse_yuml(yuml).map_err(|e| YumlError::InvalidFile(e.to_string()))?;
     Ok(df)
 }
