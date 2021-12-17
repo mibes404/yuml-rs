@@ -1,7 +1,10 @@
 use nom::bytes::complete::{is_not, take_until1, take_while};
 
 use super::*;
-use crate::model::class::{as_note, Connection, Connector, Element, RelationProps};
+use crate::model::{
+    class::{as_note, Connection, Connector, Element, ElementDetails, RelationProps},
+    shared::LabeledElement,
+};
 
 /*
 Syntax as specified in yuml.me
@@ -22,18 +25,9 @@ Comment         // Comments
 
 fn as_connector<'a>((arrow, label): (Cow<'a, str>, Option<Cow<'a, str>>)) -> Connector<'a> {
     match arrow.as_ref() {
-        "<>" | "+" => Connector::Aggregation(RelationProps {
-            label,
-            ..RelationProps::default()
-        }),
-        "++" => Connector::Composition(RelationProps {
-            label,
-            ..RelationProps::default()
-        }),
-        _ => Connector::Directional(RelationProps {
-            label,
-            ..RelationProps::default()
-        }),
+        "<>" | "+" => Connector::Aggregation(RelationProps { label }),
+        "++" => Connector::Composition(RelationProps { label }),
+        _ => Connector::Directional(RelationProps { label }),
     }
 }
 
@@ -74,16 +68,76 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
             ..Connection::default()
         })
     });
+    let inheritance = map(tag("^"), |_| Element::Inheritance);
 
     // let directional = map(tag("->"), |_| Element::Directional(RelationProps::default()));
 
-    let parse_element = alt((note, class, connector));
+    let parse_element = alt((note, class, connector, inheritance));
     let parse_line = many_till(parse_element, line_ending);
     let mut parse_lines = many_till(parse_line, eof);
 
     let (rest, (lines, _)) = parse_lines(yuml)?;
+    let elements: Vec<Element> = lines
+        .into_iter()
+        .flat_map(|(elements, _le)| elements.into_iter())
+        .collect();
+
+    let dots = as_dots(&elements);
 
     todo! {}
+}
+
+fn as_dots(elements: &[Element]) -> Vec<DotElement> {
+    let mut uids = Uids::default();
+
+    // we must collect to borrow uids in subsequent iterator
+    #[allow(clippy::needless_collect)]
+    let element_details: Vec<ElementDetails> = elements
+        .iter()
+        .filter_map(|e| {
+            if let Element::Connection(_) = &e {
+                // ignore connections for now
+                None
+            } else {
+                let lbl = e.label();
+                if uids.contains_key(&lbl) {
+                    None
+                } else {
+                    let id = uids.insert_uid(lbl, e);
+                    Some((id, e))
+                }
+            }
+        })
+        .map(|(id, element)| ElementDetails {
+            id: Some(id),
+            element,
+            relation: None,
+        })
+        .collect();
+
+    todo! {}
+}
+
+#[derive(Default)]
+struct Uids<'a> {
+    uids: HashMap<Cow<'a, str>, (usize, &'a Element<'a>)>,
+    uid: usize,
+}
+
+impl<'a> Uids<'a> {
+    fn insert_uid(&mut self, label: Cow<'a, str>, e: &'a Element<'a>) -> usize {
+        self.uid += 1;
+        self.uids.insert(label, (self.uid, e));
+        self.uid
+    }
+
+    fn contains_key(&self, key: &str) -> bool {
+        self.uids.contains_key(key)
+    }
+
+    fn get(&'a self, key: &str) -> Option<&'a (usize, &'a Element<'a>)> {
+        self.uids.get(key)
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +153,8 @@ mod tests {
 [Category]<-.->[Product]
 [Category]<-<>[Product]
 [Category]<-right_label>[Product]
+[Customer]^[Cool Customer]
+[Customer]<>1-orders 0..*>[Order]
         "#;
 
         parse_class(yuml.as_bytes(), &Options::default());

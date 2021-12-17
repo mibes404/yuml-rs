@@ -1,5 +1,8 @@
 use super::*;
-use crate::model::activity::{as_note, ArrowProps, Element, ElementDetails, ElementProps, Relation};
+use crate::model::{
+    activity::{as_note, ArrowProps, Element, ElementDetails, ElementProps, Relation},
+    shared::LabeledElement,
+};
 
 /*
 Syntax as specified in yuml.me

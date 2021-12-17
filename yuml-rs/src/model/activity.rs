@@ -1,6 +1,6 @@
 use super::{
     dot::{Arrow, Directions, Dot, DotElement, DotShape, Style},
-    shared::NoteProps,
+    shared::{LabeledElement, NoteProps},
 };
 use crate::parser::utils::as_str;
 use itertools::Itertools;
@@ -24,7 +24,17 @@ pub fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
 }
 
 impl<'a> Element<'a> {
-    pub fn label(&self) -> Cow<'a, str> {
+    pub fn is_arrow(&self) -> bool {
+        matches!(self, Element::Arrow(_))
+    }
+
+    pub fn is_note(&self) -> bool {
+        matches!(self, Element::Note(_))
+    }
+}
+
+impl<'a> LabeledElement for Element<'a> {
+    fn label(&self) -> Cow<'a, str> {
         match self {
             Element::StartTag => Cow::from("start"),
             Element::EndTag => Cow::from("end"),
@@ -32,14 +42,6 @@ impl<'a> Element<'a> {
             Element::Arrow(details) => details.label.clone().unwrap_or_default(),
             Element::Note(props) => props.label.clone(),
         }
-    }
-
-    pub fn is_arrow(&self) -> bool {
-        matches!(self, Element::Arrow(_))
-    }
-
-    pub fn is_note(&self) -> bool {
-        matches!(self, Element::Note(_))
     }
 }
 
