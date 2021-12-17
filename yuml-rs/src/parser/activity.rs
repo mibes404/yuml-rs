@@ -1,4 +1,4 @@
-use super::utils::Uids;
+use super::utils::populate_uids;
 use super::*;
 use crate::model::{
     activity::{as_note, ArrowProps, Element, ElementProps},
@@ -66,32 +66,7 @@ pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&
 }
 
 fn as_dots(elements: &[Element]) -> Vec<DotElement> {
-    let mut uids = Uids::default();
-
-    // we must collect to borrow uids in subsequent iterator
-    #[allow(clippy::needless_collect)]
-    let element_details: Vec<ElementDetails<Element>> = elements
-        .iter()
-        .filter_map(|e| {
-            if e.is_connection() {
-                // ignore arrows for now
-                None
-            } else {
-                let lbl = e.label();
-                if uids.contains_key(&lbl) {
-                    None
-                } else {
-                    let id = uids.insert_uid(lbl, e);
-                    Some((id, e))
-                }
-            }
-        })
-        .map(|(id, element)| ElementDetails {
-            id: Some(id),
-            element,
-            relation: None,
-        })
-        .collect();
+    let (uids, element_details) = populate_uids(elements);
 
     // we must collect to ensure the incoming connections are all processed, before creating the dot file
     #[allow(clippy::needless_collect)]
