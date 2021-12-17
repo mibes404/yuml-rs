@@ -1,3 +1,4 @@
+use self::{activity::parse_activity, class::parse_class, utils::as_str};
 use crate::model::dot::{ChartType, Directions, DotElement, DotFile, Options};
 use itertools::Itertools;
 use nom::{
@@ -16,8 +17,6 @@ use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
 };
-
-use self::{activity::parse_activity, class::parse_class, utils::as_str};
 
 mod activity;
 mod class;
