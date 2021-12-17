@@ -1,7 +1,7 @@
 # About
 
 Rust based yUML parser based on the Javascript version from Jaime Olivares: [yuml-diagram](https://github.com/jaime-olivares/yuml-diagram).
-At the moment only Activity diagrams are supported, with no guarantees that the other variations will be added in the future.
+At the moment only Activity and Class diagrams are supported, with no guarantees that the other variations will be added in the future.
 
 # Installation
 

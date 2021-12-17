@@ -204,8 +204,9 @@ impl DotFile {
         }
     }
 
-    pub fn set_sep(&mut self, sep: f32) {
+    pub fn sep(mut self, sep: f32) -> Self {
         self.sep = sep;
+        self
     }
 }
 
@@ -297,10 +298,22 @@ impl Display for Dot {
             f.write_fmt(format_args!(r#"margin="{}" , "#, margin))?;
         }
 
-        f.write_fmt(format_args!(
-            r#"label="{}" , "#,
-            self.label.as_deref().unwrap_or_default()
-        ))?;
+        match &self.label {
+            Some(lbl) => {
+                if lbl.starts_with("<<") {
+                    f.write_fmt(format_args!(
+                        r#"label={} , "#,
+                        self.label.as_deref().unwrap_or_default()
+                    ))?
+                } else {
+                    f.write_fmt(format_args!(
+                        r#"label="{}" , "#,
+                        self.label.as_deref().unwrap_or_default()
+                    ))?
+                }
+            }
+            None => f.write_fmt(format_args!(r#"label="" , "#,))?,
+        }
 
         f.write_fmt(format_args!(
             r#"style="{}" , "#,

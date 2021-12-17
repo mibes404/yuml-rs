@@ -1,10 +1,10 @@
 use super::{
-    dot::{Arrow, Directions, Dot, DotElement, DotShape, Style},
+    dot::{Arrow, Dot, DotElement, DotShape, Style},
     shared::{ElementDetails, LabeledElement, NoteProps},
 };
 use crate::parser::utils::as_str;
 use itertools::Itertools;
-use std::{borrow::Cow, cell::RefCell};
+use std::borrow::Cow;
 
 #[derive(Debug)]
 pub enum Element<'a> {
@@ -18,14 +18,20 @@ impl<'a> LabeledElement for Element<'a> {
     fn label(&self) -> Cow<'a, str> {
         match self {
             Element::Note(props) => props.label.clone(),
-            Element::Class(label) => label.clone(),
+            Element::Class(label) => {
+                if label.contains('|') {
+                    label.split('|').next().map(|s| Cow::Owned(s.to_owned())).unwrap()
+                } else {
+                    label.clone()
+                }
+            }
             Element::Connection(_details) => Cow::default(),
             Element::Inheritance => Cow::default(),
         }
     }
 
     fn is_connection(&self) -> bool {
-        matches!(self, Element::Connection(_))
+        matches!(self, Element::Connection(_)) || matches!(self, Element::Inheritance)
     }
 }
 
@@ -33,7 +39,7 @@ impl<'a> LabeledElement for Element<'a> {
 pub struct Connection<'a> {
     pub left: Connector<'a>,
     pub right: Connector<'a>,
-    pub dotted: bool,
+    pub dashed: bool,
 }
 
 #[derive(Debug)]
@@ -86,11 +92,21 @@ impl<'a> From<&ElementDetails<'a, Element<'a>>> for DotElement {
                     uid2: Some(uid2),
                 }
             }
-            Element::Inheritance => DotElement {
-                dot: Dot::from(e.element),
-                uid: format!("A{}", e.id.unwrap_or_default()),
-                uid2: None,
-            },
+            Element::Inheritance => {
+                let (uid1, uid2) = if let Some(relation) = &e.relation {
+                    let uid1 = format!("A{}", relation.previous_id);
+                    let uid2 = format!("A{}", relation.next_id);
+                    (uid1, uid2)
+                } else {
+                    ("A0".to_string(), "A0".to_string())
+                };
+
+                DotElement {
+                    dot: Dot::from(e.element),
+                    uid: uid1,
+                    uid2: Some(uid2),
+                }
+            }
         }
     }
 }
@@ -120,37 +136,59 @@ impl<'a> From<&Element<'a>> for Dot {
                     ..Dot::default()
                 }
             }
-            Element::Class(label) => Dot {
-                shape: DotShape::Rectangle,
-                height: Some(0.5),
-                margin: Some("0.20,0.05".to_string()),
-                label: Some(label.clone().into_owned()),
-                style: vec![Style::Rounded],
-                fontsize: Some(10),
-                ..Dot::default()
-            },
+            Element::Class(label) => {
+                let (label, margin) = if label.contains('|') {
+                    let rows = label
+                        .split('|')
+                        .into_iter()
+                        .map(|row| format!("<TR><TD>{}</TD></TR>", row))
+                        .join("");
+
+                    let table = format!(
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"9\">{}</TABLE>>",
+                        rows
+                    );
+
+                    (table, None)
+                } else {
+                    (label.clone().into_owned(), Some("0.20,0.05".to_string()))
+                };
+
+                Dot {
+                    shape: DotShape::Rectangle,
+                    height: Some(0.5),
+                    margin,
+                    label: Some(label),
+                    fontsize: Some(10),
+                    ..Dot::default()
+                }
+            }
             Element::Connection(connection) => {
                 let (left_arrow_style, left_props) = extract_props(&connection.left);
                 let (right_arrow_style, right_props) = extract_props(&connection.right);
 
                 Dot {
                     shape: DotShape::Edge,
-                    style: vec![Style::Solid],
+                    style: if connection.dashed {
+                        vec![Style::Dashed]
+                    } else {
+                        vec![Style::Solid]
+                    },
                     dir: Some("both".to_string()),
-                    arrowhead: left_arrow_style,
-                    arrowtail: right_arrow_style,
+                    arrowtail: left_arrow_style,
+                    arrowhead: right_arrow_style,
                     fontsize: Some(10),
-                    labeldistance: Some(1),
-                    headlabel: left_props.label.as_ref().map(|s| s.clone().into_owned()),
-                    taillabel: right_props.label.as_ref().map(|s| s.clone().into_owned()),
+                    labeldistance: Some(2),
+                    taillabel: left_props.label.as_ref().map(|s| s.clone().into_owned()),
+                    headlabel: right_props.label.as_ref().map(|s| s.clone().into_owned()),
                     ..Dot::default()
                 }
             }
             Element::Inheritance => Dot {
                 shape: DotShape::Edge,
-                style: vec![Style::Dashed],
+                style: vec![Style::Solid],
                 dir: Some("both".to_string()),
-                arrowhead: Some(Arrow::Vee),
+                arrowtail: Some(Arrow::Empty),
                 fontsize: Some(10),
                 ..Dot::default()
             },

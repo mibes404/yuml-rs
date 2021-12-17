@@ -4,7 +4,7 @@ use crate::model::{
     class::{as_note, Connection, Connector, Element, RelationProps},
     shared::{ElementDetails, LabeledElement, Relation},
 };
-use nom::bytes::complete::{is_not, take_until1, take_while};
+use nom::bytes::complete::{is_not, take_until1};
 
 /*
 Syntax as specified in yuml.me
@@ -23,11 +23,15 @@ Color splash    [Customer{bg:orange}]<>1->*[Order{bg:green}]
 Comment         // Comments
 */
 
-fn as_connector<'a>((arrow, label): (Cow<'a, str>, Option<Cow<'a, str>>)) -> Connector<'a> {
-    match arrow.as_ref() {
-        "<>" | "+" => Connector::Aggregation(RelationProps { label }),
-        "++" => Connector::Composition(RelationProps { label }),
-        _ => Connector::Directional(RelationProps { label }),
+fn as_connector<'a>((arrow, label): (Option<Cow<'a, str>>, Option<Cow<'a, str>>)) -> Connector<'a> {
+    if let Some(arrow) = arrow {
+        match arrow.as_ref() {
+            "<>" | "+" => Connector::Aggregation(RelationProps { label }),
+            "++" => Connector::Composition(RelationProps { label }),
+            _ => Connector::Directional(RelationProps { label }),
+        }
+    } else {
+        Connector::None(RelationProps { label })
     }
 }
 
@@ -50,26 +54,29 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
     let right_label = map(is_not("<>+"), as_str);
     let left_label = map(take_until1("-"), as_str);
     let left_arrow = map(alt((tag("<>"), tag("++"), tag("<"), tag("+"))), as_str);
-    let left_arrow_w_label = map(tuple((left_arrow, opt(left_label))), as_connector);
+    let left_arrow_w_label = map(tuple((opt(left_arrow), opt(left_label))), as_connector);
     let right_arrow = map(alt((tag("<>"), tag("++"), tag(">"), tag("+"))), as_str);
-    let right_arrow_w_label = map(tuple((opt(right_label), right_arrow)), |(lbl, arrow)| {
+    let right_arrow_w_label = map(tuple((opt(right_label), opt(right_arrow))), |(lbl, arrow)| {
         as_connector((arrow, lbl))
     });
     let connection = map(alt((tag("-.-"), tag("-"))), as_str);
-    let connector = map(tuple((left_arrow_w_label, connection, right_arrow_w_label)), |t| {
-        let dotted = t.1.as_ref() == "-.-";
-        println!("Found: {:?}", t);
-        Element::Connection(Connection {
-            dotted,
-            ..Connection::default()
-        })
-    });
+    let connector = map(
+        tuple((opt(left_arrow_w_label), connection, opt(right_arrow_w_label))),
+        |(left, con, right)| {
+            let dotted = con.as_ref() == "-.-";
+            let left = left.unwrap_or_default();
+            let right = right.unwrap_or_default();
+            Element::Connection(Connection {
+                dashed: dotted,
+                left,
+                right,
+            })
+        },
+    );
     let inheritance = map(tag("^"), |_| Element::Inheritance);
 
-    // let directional = map(tag("->"), |_| Element::Directional(RelationProps::default()));
-
-    let parse_element = alt((note, class, connector, inheritance));
-    let parse_line = many_till(parse_element, line_ending);
+    let parse_element = alt((note, class, inheritance, connector));
+    let parse_line = many_till(parse_element, alt((eof, line_ending)));
     let mut parse_lines = many_till(parse_line, eof);
 
     let (rest, (lines, _)) = parse_lines(yuml)?;
@@ -79,7 +86,7 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
         .collect();
 
     let dots = as_dots(&elements);
-    let class_file = DotFile::new(dots, options);
+    let class_file = DotFile::new(dots, options).sep(0.7);
     Ok((rest, class_file))
 }
 
@@ -117,14 +124,12 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         .iter()
         .circular_tuple_windows::<(_, _, _)>()
         .filter(|(pre, _e, next)| !pre.is_connection() && !next.is_connection())
-        .filter_map(|(pre, e, next)| {
-            if let Element::Connection(props) = e {
-                Some((pre, e, props, next))
-            } else {
-                None
-            }
+        .filter_map(|(pre, e, next)| match e {
+            Element::Connection(_props) => Some((pre, e, next)),
+            Element::Inheritance => Some((pre, e, next)),
+            _ => None,
         })
-        .filter_map(|(pre, e, _props, next)| {
+        .filter_map(|(pre, e, next)| {
             // if I am a connection
             let previous_id = uids.get(&pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
             let (next_id, _next_e) = match uids.get(&next.label()) {

@@ -51,7 +51,7 @@ pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&
     let arrow = alt((arrow_wo_label, arrow_w_label));
 
     let parse_element = alt((start_tag, end_tag, decision, note, activity, parallel, arrow));
-    let parse_line = many_till(parse_element, line_ending);
+    let parse_line = many_till(parse_element, alt((eof, line_ending)));
     let mut parse_lines = many_till(parse_line, eof);
 
     let (rest, (lines, _)) = parse_lines(yuml)?;
