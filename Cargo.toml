@@ -1,2 +1,5 @@
 [workspace]
 members = ["yuml-rs", "yuml-cli"]
+
+[profile.release]
+lto = true
