@@ -1,8 +1,8 @@
 use super::utils::Uids;
 use super::*;
 use crate::model::{
-    activity::{as_note, ArrowProps, Element, ElementDetails, ElementProps, Relation},
-    shared::LabeledElement,
+    activity::{as_note, ArrowProps, Element, ElementProps},
+    shared::{ElementDetails, LabeledElement, Relation},
 };
 
 /*
@@ -70,10 +70,10 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
 
     // we must collect to borrow uids in subsequent iterator
     #[allow(clippy::needless_collect)]
-    let element_details: Vec<ElementDetails> = elements
+    let element_details: Vec<ElementDetails<Element>> = elements
         .iter()
         .filter_map(|e| {
-            if let Element::Arrow(_) = &e {
+            if e.is_connection() {
                 // ignore arrows for now
                 None
             } else {
@@ -95,10 +95,10 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
 
     // we must collect to ensure the incoming connections are all processed, before creating the dot file
     #[allow(clippy::needless_collect)]
-    let arrow_details: Vec<ElementDetails> = elements
+    let arrow_details: Vec<ElementDetails<Element>> = elements
         .iter()
         .circular_tuple_windows::<(_, _, _)>()
-        .filter(|(pre, _e, next)| !pre.is_arrow() && !next.is_arrow())
+        .filter(|(pre, _e, next)| !pre.is_connection() && !next.is_connection())
         .filter_map(|(pre, e, next)| {
             if let Element::Arrow(props) = e {
                 Some((pre, e, props, next))

@@ -1,8 +1,8 @@
 use super::utils::Uids;
 use super::*;
 use crate::model::{
-    class::{as_note, Connection, Connector, Element, ElementDetails, RelationProps},
-    shared::LabeledElement,
+    class::{as_note, Connection, Connector, Element, RelationProps},
+    shared::{ElementDetails, LabeledElement, Relation},
 };
 use nom::bytes::complete::{is_not, take_until1, take_while};
 
@@ -49,8 +49,6 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
 
     let right_label = map(is_not("<>+"), as_str);
     let left_label = map(take_until1("-"), as_str);
-    // let left_diamond = tuple((tag("<>"), opt(left_label)));
-    // let right_diamond = tuple((opt(right_label), tag("<>")));
     let left_arrow = map(alt((tag("<>"), tag("++"), tag("<"), tag("+"))), as_str);
     let left_arrow_w_label = map(tuple((left_arrow, opt(left_label))), as_connector);
     let right_arrow = map(alt((tag("<>"), tag("++"), tag(">"), tag("+"))), as_str);
@@ -58,8 +56,6 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
         as_connector((arrow, lbl))
     });
     let connection = map(alt((tag("-.-"), tag("-"))), as_str);
-    // let composition = tag("++");
-    // let aggregation = tag("+");
     let connector = map(tuple((left_arrow_w_label, connection, right_arrow_w_label)), |t| {
         let dotted = t.1.as_ref() == "-.-";
         println!("Found: {:?}", t);
@@ -83,8 +79,8 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
         .collect();
 
     let dots = as_dots(&elements);
-
-    todo! {}
+    let class_file = DotFile::new(dots, options);
+    Ok((rest, class_file))
 }
 
 fn as_dots(elements: &[Element]) -> Vec<DotElement> {
@@ -92,10 +88,10 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
 
     // we must collect to borrow uids in subsequent iterator
     #[allow(clippy::needless_collect)]
-    let element_details: Vec<ElementDetails> = elements
+    let element_details: Vec<ElementDetails<Element>> = elements
         .iter()
         .filter_map(|e| {
-            if let Element::Connection(_) = &e {
+            if e.is_connection() {
                 // ignore connections for now
                 None
             } else {
@@ -115,7 +111,44 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         })
         .collect();
 
-    todo! {}
+    // we must collect to ensure the incoming connections are all processed, before creating the dot file
+    #[allow(clippy::needless_collect)]
+    let arrow_details: Vec<ElementDetails<Element>> = elements
+        .iter()
+        .circular_tuple_windows::<(_, _, _)>()
+        .filter(|(pre, _e, next)| !pre.is_connection() && !next.is_connection())
+        .filter_map(|(pre, e, next)| {
+            if let Element::Connection(props) = e {
+                Some((pre, e, props, next))
+            } else {
+                None
+            }
+        })
+        .filter_map(|(pre, e, _props, next)| {
+            // if I am a connection
+            let previous_id = uids.get(&pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
+            let (next_id, _next_e) = match uids.get(&next.label()) {
+                Some((idx, e)) => (*idx, e),
+                None => {
+                    // arrow pointing in the void
+                    return None;
+                }
+            };
+
+            let r = Relation { previous_id, next_id };
+            Some(ElementDetails {
+                id: None,
+                element: e,
+                relation: Some(r),
+            })
+        })
+        .collect();
+
+    element_details
+        .into_iter()
+        .chain(arrow_details.into_iter())
+        .map(|e| DotElement::from(e.borrow()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -124,17 +157,12 @@ mod tests {
 
     #[test]
     fn test_parse_class() {
-        let yuml = r#"
-[Category]<left_label->[Product]
-[Category]<>left_label->[Product]
-[Category]++->[Product]
-[Category]<-.->[Product]
-[Category]<-<>[Product]
-[Category]<-right_label>[Product]
-[Customer]^[Cool Customer]
-[Customer]<>1-orders 0..*>[Order]
-        "#;
-
-        parse_class(yuml.as_bytes(), &Options::default());
+        let yuml = include_bytes!("../../test/class.yuml");
+        if let (rest, ParsedYuml::Class(activity_file)) = parse_yuml(yuml).expect("invalid file") {
+            assert!(rest.is_empty());
+            println!("{}", activity_file);
+        } else {
+            panic!("Invalid file");
+        }
     }
 }

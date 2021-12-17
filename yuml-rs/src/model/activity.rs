@@ -1,6 +1,6 @@
 use super::{
     dot::{Arrow, Directions, Dot, DotElement, DotShape, Style},
-    shared::{LabeledElement, NoteProps},
+    shared::{ElementDetails, LabeledElement, NoteProps},
 };
 use crate::parser::utils::as_str;
 use itertools::Itertools;
@@ -24,10 +24,6 @@ pub fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
 }
 
 impl<'a> Element<'a> {
-    pub fn is_arrow(&self) -> bool {
-        matches!(self, Element::Arrow(_))
-    }
-
     pub fn is_note(&self) -> bool {
         matches!(self, Element::Note(_))
     }
@@ -42,6 +38,10 @@ impl<'a> LabeledElement for Element<'a> {
             Element::Arrow(details) => details.label.clone().unwrap_or_default(),
             Element::Note(props) => props.label.clone(),
         }
+    }
+
+    fn is_connection(&self) -> bool {
+        matches!(self, Element::Arrow(_))
     }
 }
 
@@ -79,21 +79,8 @@ impl<'a> ArrowProps<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct ElementDetails<'a> {
-    pub id: Option<usize>,
-    pub element: &'a Element<'a>,
-    pub relation: Option<Relation>,
-}
-
-#[derive(Debug)]
-pub struct Relation {
-    pub previous_id: usize,
-    pub next_id: usize,
-}
-
-impl<'a> From<&ElementDetails<'a>> for DotElement {
-    fn from(e: &ElementDetails<'a>) -> Self {
+impl<'a> From<&ElementDetails<'a, Element<'a>>> for DotElement {
+    fn from(e: &ElementDetails<'a, Element<'a>>) -> Self {
         match e.element {
             Element::StartTag | Element::EndTag => DotElement {
                 dot: Dot::from(e.element),

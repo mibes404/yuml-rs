@@ -17,7 +17,7 @@ use std::{
     collections::HashMap,
 };
 
-use self::{activity::parse_activity, utils::as_str};
+use self::{activity::parse_activity, class::parse_class, utils::as_str};
 
 mod activity;
 mod class;
@@ -25,6 +25,7 @@ pub mod utils;
 
 pub enum ParsedYuml {
     Activity(DotFile),
+    Class(DotFile),
     Unsupported,
 }
 
@@ -40,7 +41,7 @@ fn as_header<'a>(kv: (Cow<'a, str>, Cow<'a, str>)) -> Header<'a> {
 impl std::fmt::Display for ParsedYuml {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParsedYuml::Activity(af) => af.fmt(f),
+            ParsedYuml::Activity(df) | ParsedYuml::Class(df) => df.fmt(f),
             ParsedYuml::Unsupported => f.write_str(""),
         }
     }
@@ -77,6 +78,10 @@ pub fn parse_yuml(yuml: &[u8]) -> IResult<&[u8], ParsedYuml> {
         Some(ChartType::Activity) => {
             let (rest, activity_file) = parse_activity(rest, &options)?;
             (rest, ParsedYuml::Activity(activity_file))
+        }
+        Some(ChartType::Class) => {
+            let (rest, class_file) = parse_class(rest, &options)?;
+            (rest, ParsedYuml::Class(class_file))
         }
         _ => (rest, ParsedYuml::Unsupported),
     };
