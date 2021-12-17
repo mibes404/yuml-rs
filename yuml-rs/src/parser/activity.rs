@@ -1,3 +1,4 @@
+use super::utils::Uids;
 use super::*;
 use crate::model::{
     activity::{as_note, ArrowProps, Element, ElementDetails, ElementProps, Relation},
@@ -62,28 +63,6 @@ pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&
     let dots = as_dots(&elements);
     let activity_file = DotFile::new(dots, options);
     Ok((rest, activity_file))
-}
-
-#[derive(Default)]
-struct Uids<'a> {
-    uids: HashMap<Cow<'a, str>, (usize, &'a Element<'a>)>,
-    uid: usize,
-}
-
-impl<'a> Uids<'a> {
-    fn insert_uid(&mut self, label: Cow<'a, str>, e: &'a Element<'a>) -> usize {
-        self.uid += 1;
-        self.uids.insert(label, (self.uid, e));
-        self.uid
-    }
-
-    fn contains_key(&self, key: &str) -> bool {
-        self.uids.contains_key(key)
-    }
-
-    fn get(&'a self, key: &str) -> Option<&'a (usize, &'a Element<'a>)> {
-        self.uids.get(key)
-    }
 }
 
 fn as_dots(elements: &[Element]) -> Vec<DotElement> {

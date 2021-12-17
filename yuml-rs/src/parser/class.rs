@@ -1,10 +1,10 @@
-use nom::bytes::complete::{is_not, take_until1, take_while};
-
+use super::utils::Uids;
 use super::*;
 use crate::model::{
     class::{as_note, Connection, Connector, Element, ElementDetails, RelationProps},
     shared::LabeledElement,
 };
+use nom::bytes::complete::{is_not, take_until1, take_while};
 
 /*
 Syntax as specified in yuml.me
@@ -116,28 +116,6 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         .collect();
 
     todo! {}
-}
-
-#[derive(Default)]
-struct Uids<'a> {
-    uids: HashMap<Cow<'a, str>, (usize, &'a Element<'a>)>,
-    uid: usize,
-}
-
-impl<'a> Uids<'a> {
-    fn insert_uid(&mut self, label: Cow<'a, str>, e: &'a Element<'a>) -> usize {
-        self.uid += 1;
-        self.uids.insert(label, (self.uid, e));
-        self.uid
-    }
-
-    fn contains_key(&self, key: &str) -> bool {
-        self.uids.contains_key(key)
-    }
-
-    fn get(&'a self, key: &str) -> Option<&'a (usize, &'a Element<'a>)> {
-        self.uids.get(key)
-    }
 }
 
 #[cfg(test)]

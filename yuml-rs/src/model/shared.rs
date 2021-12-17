@@ -7,5 +7,5 @@ pub struct NoteProps<'a> {
 }
 
 pub trait LabeledElement {
-    fn label<'a>(&'a self) -> Cow<'a, str>;
+    fn label(&self) -> Cow<'_, str>;
 }
