@@ -19,9 +19,9 @@ Note               (Action1)-(note: A note message here)
 Comment            // Comments
 */
 
-pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a [u8], DotFile> {
-    let start_tag = map(tag("(start)"), |_s: &[u8]| Element::StartTag);
-    let end_tag = map(tag("(end)"), |_s: &[u8]| Element::EndTag);
+pub fn parse_activity<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'a str, DotFile> {
+    let start_tag = map(tag("(start)"), |_s: &str| Element::StartTag);
+    let end_tag = map(tag("(end)"), |_s: &str| Element::EndTag);
     let note_string = take_until("}");
     let note_props = delimited(tag("{"), note_string, tag("}"));
     let note = take_until("{");
@@ -31,19 +31,19 @@ pub fn parse_activity<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&
         delimited(tag("(note:"), alphanumeric_string, tag(")")),
         extract_attributes,
     );
-    let alphanumeric_string = map(take_until(">"), as_str);
+    let alphanumeric_string = take_until(">");
     let decision = map(delimited(tag("<"), alphanumeric_string, tag(">")), |s| {
         Element::Decision(ElementProps::new(s))
     });
-    let alphanumeric_string = map(take_until(")"), as_str);
+    let alphanumeric_string = take_until(")");
     let activity = map(delimited(tag("("), alphanumeric_string, tag(")")), |s| {
         Element::Activity(ElementProps::new(s))
     });
-    let alphanumeric_string = map(take_until("|"), as_str);
+    let alphanumeric_string = take_until("|");
     let parallel = map(delimited(tag("|"), alphanumeric_string, tag("|")), |s| {
         Element::Parallel(ElementProps::new(s))
     });
-    let alphanumeric_string = map(take_until("->"), as_str);
+    let alphanumeric_string = take_until("->");
     let arrow_w_label = map(terminated(alphanumeric_string, tag("->")), |lbl| {
         Element::Arrow(ArrowProps::new(Some(lbl), &options.dir))
     });
@@ -88,8 +88,8 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
                 *dashed = true;
             }
 
-            let previous_id = uids.get(&pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
-            let (next_id, next_e) = match uids.get(&next.label()) {
+            let previous_id = uids.get(pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
+            let (next_id, next_e) = match uids.get(next.label()) {
                 Some((idx, e)) => (*idx, e),
                 None => {
                     // arrow pointing in the void
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_parse_activity() {
-        let yuml = include_bytes!("../../test/activity.yuml");
+        let yuml = include_str!("../../test/activity.yuml");
         if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_parse_big_activity() {
-        let yuml = include_bytes!("../../test/big_activity.yuml");
+        let yuml = include_str!("../../test/big_activity.yuml");
         if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);

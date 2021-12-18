@@ -23,9 +23,9 @@ Color splash    [Customer{bg:orange}]<>1->*[Order{bg:green}]
 Comment         // Comments
 */
 
-fn as_connector<'a>((arrow, label): (Option<Cow<'a, str>>, Option<Cow<'a, str>>)) -> Connector<'a> {
+fn as_connector<'a>((arrow, label): (Option<&'a str>, Option<&'a str>)) -> Connector<'a> {
     if let Some(arrow) = arrow {
-        match arrow.as_ref() {
+        match arrow {
             "<>" | "+" => Connector::Aggregation(RelationProps { label }),
             "++" => Connector::Composition(RelationProps { label }),
             _ => Connector::Directional(RelationProps { label }),
@@ -35,7 +35,7 @@ fn as_connector<'a>((arrow, label): (Option<Cow<'a, str>>, Option<Cow<'a, str>>)
     }
 }
 
-pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a [u8], DotFile> {
+pub fn parse_class<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'a str, DotFile> {
     let note_string = take_until("}");
     let note_props = delimited(tag("{"), note_string, tag("}"));
     let note = take_until("{");
@@ -46,24 +46,24 @@ pub fn parse_class<'a, 'o>(yuml: &'a [u8], options: &'o Options) -> IResult<&'a 
         extract_attributes,
     );
 
-    let alphanumeric_string = map(take_until("]"), as_str);
+    let alphanumeric_string = take_until("]");
     let class = map(delimited(tag("["), alphanumeric_string, tag("]")), |lbl| {
         Element::Class(lbl)
     });
 
-    let right_label = map(is_not("<>+"), as_str);
-    let left_label = map(take_until1("-"), as_str);
-    let left_arrow = map(alt((tag("<>"), tag("++"), tag("<"), tag("+"))), as_str);
+    let right_label = is_not("<>+");
+    let left_label = take_until1("-");
+    let left_arrow = alt((tag("<>"), tag("++"), tag("<"), tag("+")));
     let left_arrow_w_label = map(tuple((opt(left_arrow), opt(left_label))), as_connector);
-    let right_arrow = map(alt((tag("<>"), tag("++"), tag(">"), tag("+"))), as_str);
+    let right_arrow = alt((tag("<>"), tag("++"), tag(">"), tag("+")));
     let right_arrow_w_label = map(tuple((opt(right_label), opt(right_arrow))), |(lbl, arrow)| {
         as_connector((arrow, lbl))
     });
-    let connection = map(alt((tag("-.-"), tag("-"))), as_str);
+    let connection = alt((tag("-.-"), tag("-")));
     let connector = map(
         tuple((opt(left_arrow_w_label), connection, opt(right_arrow_w_label))),
         |(left, con, right)| {
-            let dotted = con.as_ref() == "-.-";
+            let dotted = con == "-.-";
             let left = left.unwrap_or_default();
             let right = right.unwrap_or_default();
             Element::Connection(Connection {
@@ -106,8 +106,8 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         })
         .filter_map(|(pre, e, next)| {
             // if I am a connection
-            let previous_id = uids.get(&pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
-            let (next_id, _next_e) = match uids.get(&next.label()) {
+            let previous_id = uids.get(pre.label()).map(|(idx, _e)| *idx).unwrap_or_default();
+            let (next_id, _next_e) = match uids.get(next.label()) {
                 Some((idx, e)) => (*idx, e),
                 None => {
                     // arrow pointing in the void
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_parse_class() {
-        let yuml = include_bytes!("../../test/class.yuml");
+        let yuml = include_str!("../../test/class.yuml");
         if let (rest, ParsedYuml::Class(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);

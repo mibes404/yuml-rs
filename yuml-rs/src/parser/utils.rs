@@ -2,12 +2,8 @@ use crate::model::shared::{ElementDetails, LabeledElement};
 
 use super::*;
 
-pub fn as_str(b: &[u8]) -> Cow<str> {
-    String::from_utf8_lossy(b)
-}
-
 pub struct Uids<'a, T: LabeledElement> {
-    uids: HashMap<Cow<'a, str>, (usize, &'a T)>,
+    uids: HashMap<&'a str, (usize, &'a T)>,
     uid: usize,
 }
 
@@ -21,7 +17,7 @@ impl<'a, T: LabeledElement> Default for Uids<'a, T> {
 }
 
 impl<'a, T: LabeledElement> Uids<'a, T> {
-    pub fn insert_uid(&mut self, label: Cow<'a, str>, e: &'a T) -> usize {
+    pub fn insert_uid(&mut self, label: &'a str, e: &'a T) -> usize {
         self.uid += 1;
         self.uids.insert(label, (self.uid, e));
         self.uid
@@ -48,7 +44,7 @@ pub fn populate_uids<T: LabeledElement>(elements: &[T]) -> (Uids<T>, Vec<Element
                 None
             } else {
                 let lbl = e.label();
-                if uids.contains_key(&lbl) {
+                if uids.contains_key(lbl) {
                     None
                 } else {
                     let id = uids.insert_uid(lbl, e);

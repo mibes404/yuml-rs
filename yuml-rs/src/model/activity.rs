@@ -2,9 +2,8 @@ use super::{
     dot::{Arrow, Directions, Dot, DotElement, DotShape, Style},
     shared::{ElementDetails, LabeledElement, NoteProps},
 };
-use crate::parser::utils::as_str;
 use itertools::Itertools;
-use std::{borrow::Cow, cell::RefCell};
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub enum Element<'a> {
@@ -17,9 +16,9 @@ pub enum Element<'a> {
     Note(NoteProps<'a>),
 }
 
-pub fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
-    let label = as_str(note.0);
-    let attributes = note.1.map(as_str);
+pub fn as_note<'a>(note: (&'a str, Option<&'a str>)) -> Element {
+    let label = note.0;
+    let attributes = note.1;
     Element::Note(NoteProps { label, attributes })
 }
 
@@ -30,13 +29,13 @@ impl<'a> Element<'a> {
 }
 
 impl<'a> LabeledElement for Element<'a> {
-    fn label(&self) -> Cow<'a, str> {
+    fn label(&self) -> &'a str {
         match self {
-            Element::StartTag => Cow::from("start"),
-            Element::EndTag => Cow::from("end"),
-            Element::Activity(props) | Element::Parallel(props) | Element::Decision(props) => props.label.clone(),
-            Element::Arrow(details) => details.label.clone().unwrap_or_default(),
-            Element::Note(props) => props.label.clone(),
+            Element::StartTag => "start",
+            Element::EndTag => "end",
+            Element::Activity(props) | Element::Parallel(props) | Element::Decision(props) => props.label,
+            Element::Arrow(details) => details.label.unwrap_or_default(),
+            Element::Note(props) => props.label,
         }
     }
 
@@ -47,20 +46,20 @@ impl<'a> LabeledElement for Element<'a> {
 
 #[derive(Debug)]
 pub struct ElementProps<'a> {
-    pub label: Cow<'a, str>,
+    pub label: &'a str,
     pub incoming_connections: RefCell<u8>,
 }
 
 #[derive(Debug)]
 pub struct ArrowProps<'a> {
-    pub label: Option<Cow<'a, str>>,
+    pub label: Option<&'a str>,
     pub target_connection_id: RefCell<u8>,
     pub dashed: RefCell<bool>,
     pub chart_direction: Directions,
 }
 
 impl<'a> ElementProps<'a> {
-    pub fn new(label: Cow<'a, str>) -> Self {
+    pub fn new(label: &'a str) -> Self {
         Self {
             label,
             incoming_connections: RefCell::new(0),
@@ -69,7 +68,7 @@ impl<'a> ElementProps<'a> {
 }
 
 impl<'a> ArrowProps<'a> {
-    pub fn new(label: Option<Cow<'a, str>>, chart_direction: &Directions) -> Self {
+    pub fn new(label: Option<&'a str>, chart_direction: &Directions) -> Self {
         Self {
             label,
             target_connection_id: RefCell::new(0),
@@ -140,7 +139,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 shape: DotShape::Rectangle,
                 height: Some(0.5),
                 margin: Some("0.20,0.05".to_string()),
-                label: Some(props.label.clone().into_owned()),
+                label: Some(props.label.to_string()),
                 style: vec![Style::Rounded],
                 fontsize: Some(10),
                 ..Dot::default()
@@ -164,7 +163,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 shape: DotShape::Diamond,
                 height: Some(0.5),
                 width: Some(0.5),
-                label: Some(props.label.clone().into_owned()),
+                label: Some(props.label.to_string()),
                 fontsize: Some(0),
                 ..Dot::default()
             },
@@ -175,7 +174,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 arrowhead: Some(Arrow::Vee),
                 fontsize: Some(10),
                 labeldistance: Some(1),
-                label: props.label.as_ref().map(|s| s.clone().into_owned()),
+                label: props.label.as_ref().map(|s| s.to_string()),
                 ..Dot::default()
             },
             // A1 [shape="note" , margin="0.20,0.05" , label="You can stick notes on diagrams too!\\{bg:cornsilk\\}" , style="filled" , fillcolor="cornsilk" , fontcolor="black" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]
@@ -194,7 +193,7 @@ impl<'a> From<&Element<'a>> for Dot {
                     shape: DotShape::Note,
                     height: Some(0.5),
                     margin: Some("0.20,0.05".to_string()),
-                    label: Some(props.label.clone().into_owned()),
+                    label: Some(props.label.to_string()),
                     fontsize: Some(10),
                     fillcolor,
                     style,

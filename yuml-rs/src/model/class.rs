@@ -2,31 +2,29 @@ use super::{
     dot::{Arrow, Dot, DotElement, DotShape, Style},
     shared::{ElementDetails, LabeledElement, NoteProps},
 };
-use crate::parser::utils::as_str;
 use itertools::Itertools;
-use std::borrow::Cow;
 
 #[derive(Debug)]
 pub enum Element<'a> {
     Note(NoteProps<'a>),
-    Class(Cow<'a, str>),
+    Class(&'a str),
     Connection(Connection<'a>),
     Inheritance,
 }
 
 impl<'a> LabeledElement for Element<'a> {
-    fn label(&self) -> Cow<'a, str> {
+    fn label(&self) -> &'a str {
         match self {
-            Element::Note(props) => props.label.clone(),
+            Element::Note(props) => props.label,
             Element::Class(label) => {
                 if label.contains('|') {
-                    label.split('|').next().map(|s| Cow::Owned(s.to_owned())).unwrap()
+                    label.split('|').next().unwrap()
                 } else {
-                    label.clone()
+                    label
                 }
             }
-            Element::Connection(_details) => Cow::default(),
-            Element::Inheritance => Cow::default(),
+            Element::Connection(_details) => "",
+            Element::Inheritance => "",
         }
     }
 
@@ -60,12 +58,12 @@ impl<'a> Default for Connector<'a> {
 
 #[derive(Debug, Default)]
 pub struct RelationProps<'a> {
-    pub label: Option<Cow<'a, str>>,
+    pub label: Option<&'a str>,
 }
 
-pub fn as_note<'a>(note: (&'a [u8], Option<&'a [u8]>)) -> Element {
-    let label = as_str(note.0);
-    let attributes = note.1.map(as_str);
+pub fn as_note<'a>(note: (&'a str, Option<&'a str>)) -> Element {
+    let label = note.0;
+    let attributes = note.1;
     Element::Note(NoteProps { label, attributes })
 }
 
@@ -129,7 +127,7 @@ impl<'a> From<&Element<'a>> for Dot {
                     shape: DotShape::Note,
                     height: Some(0.5),
                     margin: Some("0.20,0.05".to_string()),
-                    label: Some(props.label.clone().into_owned()),
+                    label: Some(props.label.to_string()),
                     fontsize: Some(10),
                     fillcolor,
                     style,
@@ -151,7 +149,7 @@ impl<'a> From<&Element<'a>> for Dot {
 
                     (table, None)
                 } else {
-                    (label.clone().into_owned(), Some("0.20,0.05".to_string()))
+                    (label.to_string(), Some("0.20,0.05".to_string()))
                 };
 
                 Dot {
@@ -179,8 +177,8 @@ impl<'a> From<&Element<'a>> for Dot {
                     arrowhead: right_arrow_style,
                     fontsize: Some(10),
                     labeldistance: Some(2),
-                    taillabel: left_props.label.as_ref().map(|s| s.clone().into_owned()),
-                    headlabel: right_props.label.as_ref().map(|s| s.clone().into_owned()),
+                    taillabel: left_props.label.as_ref().map(|s| s.to_string()),
+                    headlabel: right_props.label.as_ref().map(|s| s.to_string()),
                     ..Dot::default()
                 }
             }

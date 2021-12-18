@@ -1,4 +1,4 @@
-use self::{activity::parse_activity, class::parse_class, utils::as_str};
+use self::{activity::parse_activity, class::parse_class};
 use crate::model::dot::{ChartType, Directions, DotElement, DotFile, Options};
 use itertools::Itertools;
 use nom::{
@@ -13,10 +13,7 @@ use nom::{
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::{
-    borrow::{Borrow, Cow},
-    collections::HashMap,
-};
+use std::{borrow::Borrow, collections::HashMap};
 
 mod activity;
 mod class;
@@ -29,11 +26,11 @@ pub enum ParsedYuml {
 }
 
 pub struct Header<'a> {
-    pub key: Cow<'a, str>,
-    pub value: Cow<'a, str>,
+    pub key: &'a str,
+    pub value: &'a str,
 }
 
-fn as_header<'a>(kv: (Cow<'a, str>, Cow<'a, str>)) -> Header<'a> {
+fn as_header<'a>(kv: (&'a str, &'a str)) -> Header<'a> {
     Header { key: kv.0, value: kv.1 }
 }
 
@@ -50,9 +47,9 @@ fn determine_file_options(headers: &[Header]) -> Options {
     let mut options = Options::default();
 
     for h in headers.iter() {
-        match h.key.as_ref() {
-            "type" => options.chart_type = ChartType::try_from(h.value.as_ref()).ok(),
-            "direction" => options.dir = Directions::try_from(h.value.as_ref()).unwrap_or_default(),
+        match h.key {
+            "type" => options.chart_type = ChartType::try_from(h.value).ok(),
+            "direction" => options.dir = Directions::try_from(h.value).unwrap_or_default(),
             _ => { /* ignore unsupported headers */ }
         }
     }
@@ -60,9 +57,9 @@ fn determine_file_options(headers: &[Header]) -> Options {
     options
 }
 
-pub fn parse_yuml(yuml: &[u8]) -> IResult<&[u8], ParsedYuml> {
-    let alphanumeric_string = map(alphanumeric0, as_str);
-    let alphanumeric_string_2 = map(alphanumeric0, as_str);
+pub fn parse_yuml(yuml: &str) -> IResult<&str, ParsedYuml> {
+    let alphanumeric_string = alphanumeric0;
+    let alphanumeric_string_2 = alphanumeric0;
     let parse_key_value = separated_pair(alphanumeric_string, tag(":"), alphanumeric_string_2);
     let parse_header = delimited(tag("{"), parse_key_value, tag("}"));
     let parse_header = terminated(preceded(tag("// "), parse_header), newline);
