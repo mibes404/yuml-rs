@@ -1,13 +1,11 @@
-use std::borrow::Cow;
-
 #[derive(Debug)]
 pub struct NoteProps<'a> {
-    pub label: Cow<'a, str>,
-    pub attributes: Option<Cow<'a, str>>,
+    pub label: &'a str,
+    pub attributes: Option<&'a str>,
 }
 
 pub trait LabeledElement {
-    fn label(&self) -> Cow<'_, str>;
+    fn label(&self) -> &'_ str;
     fn is_connection(&self) -> bool;
 }
 

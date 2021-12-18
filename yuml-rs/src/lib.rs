@@ -19,13 +19,13 @@ use std::{
 /// Generate the interediate `DotFile` from the yUML input.
 /// Usage:
 /// ```rust,no_run
-/// use std::fs::read;
+/// use std::fs::read_to_string;
 /// use yuml_rs::parse_yuml;
 ///
-/// let yuml = read("activity.yaml").expect("can not read input file");
+/// let yuml = read_to_string("activity.yaml").expect("can not read input file");
 /// let dot = parse_yuml(&yuml).expect("invalid yUML");
 /// ```
-pub fn parse_yuml(yuml: &[u8]) -> YumlResult<ParsedYuml> {
+pub fn parse_yuml(yuml: &str) -> YumlResult<ParsedYuml> {
     let (_, df) = parser::parse_yuml(yuml).map_err(|e| YumlError::InvalidFile(e.to_string()))?;
     Ok(df)
 }
@@ -33,10 +33,10 @@ pub fn parse_yuml(yuml: &[u8]) -> YumlResult<ParsedYuml> {
 /// Render SVG using the "dot" binary, taking a valid dot-description as input.
 /// Usage:
 /// ```rust,no_run
-/// use std::fs::read;
+/// use std::fs::read_to_string;
 /// use yuml_rs::{parse_yuml, render_svg_from_dot};
 ///
-/// let yuml = read("activity.yaml").expect("can not read input file");
+/// let yuml = read_to_string("activity.yaml").expect("can not read input file");
 /// let dot = parse_yuml(&yuml).expect("invalid yUML");
 /// render_svg_from_dot(&dot.to_string()).expect("can not generate SVG");
 /// ```
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_activity() {
-        let text = include_bytes!("../test/activity.yuml");
+        let text = include_str!("../test/activity.yuml");
         let expected = include_str!("../test/activity.dot");
         let dot = parse_yuml(text).expect("can not generate activity dot");
         assert_eq!(dot.to_string(), expected);

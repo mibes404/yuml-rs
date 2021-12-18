@@ -1,5 +1,5 @@
 use clap::{App, Arg};
-use std::fs::read;
+use std::fs::read_to_string;
 use yuml_rs::{parse_yuml, write_svg_from_dot};
 
 fn main() {
@@ -29,7 +29,7 @@ fn main() {
 
     let input_file = matches.value_of("input").expect("an input file is mandatory");
     let output_file = matches.value_of("output").expect("an output file is mandatory");
-    let yuml = read(input_file).expect("can not read input file");
+    let yuml = read_to_string(input_file).expect("can not read input file");
 
     let dot = match parse_yuml(&yuml) {
         Ok(dot) => dot,
