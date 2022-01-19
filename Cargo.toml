@@ -3,3 +3,4 @@ members = ["yuml-rs", "yuml-cli"]
 
 [profile.release]
 lto = true
+codegen-units = 1

@@ -17,6 +17,7 @@ use std::{borrow::Borrow, collections::HashMap};
 
 mod activity;
 mod class;
+mod usecase;
 pub mod utils;
 
 pub enum ParsedYuml {
