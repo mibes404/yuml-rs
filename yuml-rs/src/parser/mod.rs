@@ -8,9 +8,9 @@ use nom::{
         complete::{alphanumeric0, newline},
         streaming::line_ending,
     },
-    combinator::{eof, map, map_parser, not, opt, rest},
+    combinator::{eof, map, map_parser, map_res, opt, rest},
     multi::{many0, many_till},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use std::{borrow::Borrow, collections::HashMap};

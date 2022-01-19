@@ -1,8 +1,3 @@
-use nom::{
-    character::complete::{anychar, none_of},
-    combinator::{flat_map, map_opt, map_res, verify},
-};
-
 use super::utils::populate_uids;
 use super::*;
 use crate::model::{
@@ -24,7 +19,7 @@ Note               (Action1)-(note: A note message here)
 Comment            // Comments
 */
 
-pub fn note_or_actvity<'a, 'o>(yuml: &'a str) -> IResult<&'a str, Element<'a>> {
+pub fn note_or_actvity(yuml: &str) -> IResult<&str, Element> {
     let note_string = take_until("}");
     let note_props = delimited(tag("{"), note_string, tag("}"));
     let note_text = alt((take_until("{"), rest));
@@ -36,7 +31,7 @@ pub fn note_or_actvity<'a, 'o>(yuml: &'a str) -> IResult<&'a str, Element<'a>> {
     n_or_a(yuml)
 }
 
-fn parse_activity_elem<'a, 'o>(yuml: &'a str) -> IResult<&'a str, Element<'a>> {
+fn parse_activity_elem(yuml: &str) -> IResult<&str, Element> {
     let activity = preceded(tag("("), parse_until_end_of_activity);
     let mut activity = map_res(activity, |s| note_or_actvity(s).map(|(_, b)| b));
     activity(yuml)
@@ -136,7 +131,7 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         .collect()
 }
 
-fn parse_until_end_of_activity<'a, 'o>(yuml: &'a str) -> IResult<&'a str, &'a str> {
+fn parse_until_end_of_activity(yuml: &str) -> IResult<&str, &str> {
     let mut last_char: Option<char> = None;
     for (idx, c) in yuml.char_indices() {
         if c == ')' {
