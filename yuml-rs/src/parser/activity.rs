@@ -4,7 +4,6 @@ use crate::model::{
     activity::{as_note, ArrowProps, Element, ElementProps},
     shared::{ElementDetails, LabeledElement, Relation},
 };
-use nom::combinator::rest;
 
 /*
 Syntax as specified in yuml.me
@@ -35,7 +34,8 @@ pub fn parse_activity<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'
     let alphanumeric_string = take_until(")");
     let extract_activity = map(rest, |s| Element::Activity(ElementProps::new(s)));
     let note_or_actvity = alt((extract_note, extract_activity));
-    let activity = map_parser(delimited(tag("("), alphanumeric_string, tag(")")), note_or_actvity);
+    let end_quote = pair(not(tag("\\")), tag(")"));
+    let activity = map_parser(delimited(tag("("), alphanumeric_string, end_quote), note_or_actvity);
     let alphanumeric_string = take_until("|");
     let parallel = map(delimited(tag("|"), alphanumeric_string, tag("|")), |s| {
         Element::Parallel(ElementProps::new(s))
@@ -125,6 +125,13 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
 
 #[cfg(test)]
 mod tests {
+    use nom::{
+        bytes::complete::{escaped, is_a, is_not, take_till},
+        character::complete::{anychar, none_of, one_of},
+        combinator::verify,
+        complete::take,
+    };
+
     use super::*;
 
     fn parse(yuml: &str) -> DotFile {
@@ -173,8 +180,68 @@ mod tests {
     }
 
     #[test]
+    fn parse_single_decision() {
+        const YUML: &str = "<a>";
+        const A1: &str = r#"A1 [shape="diamond" , label="a" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , width=0.5 , fontsize=0 , ]"#;
+        validate(YUML, &[A1]);
+    }
+
+    #[test]
+    fn parse_single_connector() {
+        const YUML: &str = "|a|";
+        const A1: &str = r#"A1 [shape="diamond" , label="a" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , width=0.5 , fontsize=0 , ]"#;
+        validate(YUML, &[A1]);
+    }
+
+    #[test]
     fn parse_single_note_with_attr() {
         const YUML: &str = "(note:Hello{bg:cornsilk})";
+        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="filled" , fillcolor="cornsilk" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        validate(YUML, &[A1]);
+    }
+
+    #[test]
+    fn test_find_escaped_chars() {
+        use nom::error::ErrorKind;
+        use nom::Err;
+
+        const YUML: &str = r#"\)"#;
+        let mut parser = preceded(is_a("\\"), tag(")"));
+        assert_eq!(parser(YUML), Ok(("", ")")));
+        assert_eq!(parser(""), Err(Err::Error(("", ErrorKind::IsA))));
+    }
+
+    #[test]
+    fn test_find_not_escaped_chars() {
+        use nom::error::ErrorKind;
+        use nom::Err;
+
+        const YUML: &str = r#"a)"#;
+        let mut parser = pair(none_of("\\"), tag(")"));
+        assert_eq!(parser(YUML), Ok(("", ('a', ")"))));
+        assert_eq!(parser(""), Err(Err::Error(("", ErrorKind::NoneOf))));
+    }
+
+    #[test]
+    fn test_find_not_escaped_chars_2() {
+        use nom::error::ErrorKind;
+        use nom::Err;
+
+        const YUML: &str = r#"(hello \(some\) world)"#;
+        let activity_end = map(pair(none_of("\\"), tag(")")), |(c, _)| c);
+        let activity = map(many_till(anychar, activity_end), |(mut v, c)| {
+            v.push(c);
+            v.iter().collect::<String>()
+        });
+        let mut activity = preceded(tag("("), activity);
+
+        assert_eq!(activity(YUML), Ok(("", "hello \\(some\\) world".to_string())));
+        assert_eq!(activity(""), Err(Err::Error(("", ErrorKind::Tag))));
+    }
+
+    #[test]
+    fn parse_single_note_with_escaped_chars() {
+        const YUML: &str = r#"(note: V1 \(vdest\): 99999{bg:cornsilk})"#;
         const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="filled" , fillcolor="cornsilk" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
         validate(YUML, &[A1]);
     }
