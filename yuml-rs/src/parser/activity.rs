@@ -1,3 +1,8 @@
+use nom::{
+    character::complete::{anychar, none_of},
+    combinator::{flat_map, map_opt, map_res, verify},
+};
+
 use super::utils::populate_uids;
 use super::*;
 use crate::model::{
@@ -19,23 +24,31 @@ Note               (Action1)-(note: A note message here)
 Comment            // Comments
 */
 
-pub fn parse_activity<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'a str, DotFile> {
-    let start_tag = map(tag("(start)"), |_s: &str| Element::StartTag);
-    let end_tag = map(tag("(end)"), |_s: &str| Element::EndTag);
+pub fn note_or_actvity<'a, 'o>(yuml: &'a str) -> IResult<&'a str, Element<'a>> {
     let note_string = take_until("}");
     let note_props = delimited(tag("{"), note_string, tag("}"));
     let note_text = alt((take_until("{"), rest));
     let extract_attributes = map(tuple((note_text, opt(note_props))), as_note);
     let extract_note = map_parser(preceded(tag("note:"), rest), extract_attributes);
+    let extract_activity = map(rest, |s| Element::Activity(ElementProps::new(s)));
+    let mut n_or_a = alt((extract_note, extract_activity));
+
+    n_or_a(yuml)
+}
+
+fn parse_activity_elem<'a, 'o>(yuml: &'a str) -> IResult<&'a str, Element<'a>> {
+    let activity = preceded(tag("("), parse_until_end_of_activity);
+    let mut activity = map_res(activity, |s| note_or_actvity(s).map(|(_, b)| b));
+    activity(yuml)
+}
+
+pub fn parse_activity<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'a str, DotFile> {
+    let start_tag = map(tag("(start)"), |_s: &str| Element::StartTag);
+    let end_tag = map(tag("(end)"), |_s: &str| Element::EndTag);
     let alphanumeric_string = take_until(">");
     let decision = map(delimited(tag("<"), alphanumeric_string, tag(">")), |s| {
         Element::Decision(ElementProps::new(s))
     });
-    let alphanumeric_string = take_until(")");
-    let extract_activity = map(rest, |s| Element::Activity(ElementProps::new(s)));
-    let note_or_actvity = alt((extract_note, extract_activity));
-    let end_quote = pair(not(tag("\\")), tag(")"));
-    let activity = map_parser(delimited(tag("("), alphanumeric_string, end_quote), note_or_actvity);
     let alphanumeric_string = take_until("|");
     let parallel = map(delimited(tag("|"), alphanumeric_string, tag("|")), |s| {
         Element::Parallel(ElementProps::new(s))
@@ -49,7 +62,7 @@ pub fn parse_activity<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'
 
     let arrow = alt((arrow_wo_label, arrow_w_label, no_tail_arrow_wo_label));
 
-    let parse_element = alt((start_tag, end_tag, decision, activity, parallel, arrow));
+    let parse_element = alt((start_tag, end_tag, decision, parse_activity_elem, parallel, arrow));
     let parse_line = many_till(parse_element, alt((eof, line_ending)));
     let mut parse_lines = many_till(parse_line, eof);
 
@@ -123,15 +136,29 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
         .collect()
 }
 
+fn parse_until_end_of_activity<'a, 'o>(yuml: &'a str) -> IResult<&'a str, &'a str> {
+    let mut last_char: Option<char> = None;
+    for (idx, c) in yuml.char_indices() {
+        if c == ')' {
+            if let Some(lc) = last_char.as_ref() {
+                if *lc != '\\' {
+                    return Ok((&yuml[idx + 1..], &yuml[..idx]));
+                }
+            } else {
+                return Ok((&yuml[idx + 1..], &yuml[..idx]));
+            }
+        }
+
+        last_char = Some(c)
+    }
+
+    Err(nom::Err::Error(nom::error::Error::new(
+        yuml,
+        nom::error::ErrorKind::RegexpFind,
+    )))
+}
 #[cfg(test)]
 mod tests {
-    use nom::{
-        bytes::complete::{escaped, is_a, is_not, take_till},
-        character::complete::{anychar, none_of, one_of},
-        combinator::verify,
-        complete::take,
-    };
-
     use super::*;
 
     fn parse(yuml: &str) -> DotFile {
@@ -189,7 +216,7 @@ mod tests {
     #[test]
     fn parse_single_connector() {
         const YUML: &str = "|a|";
-        const A1: &str = r#"A1 [shape="diamond" , label="a" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , width=0.5 , fontsize=0 , ]"#;
+        const A1: &str = r#"A1 [shape="record" , label="" , style="filled" , arrowtail="none" , arrowhead="none" , height=0.05 , width=0.5 , fontsize=1 , penwidth=4 , ]"#;
         validate(YUML, &[A1]);
     }
 
@@ -202,47 +229,15 @@ mod tests {
 
     #[test]
     fn test_find_escaped_chars() {
-        use nom::error::ErrorKind;
-        use nom::Err;
-
-        const YUML: &str = r#"\)"#;
-        let mut parser = preceded(is_a("\\"), tag(")"));
-        assert_eq!(parser(YUML), Ok(("", ")")));
-        assert_eq!(parser(""), Err(Err::Error(("", ErrorKind::IsA))));
-    }
-
-    #[test]
-    fn test_find_not_escaped_chars() {
-        use nom::error::ErrorKind;
-        use nom::Err;
-
-        const YUML: &str = r#"a)"#;
-        let mut parser = pair(none_of("\\"), tag(")"));
-        assert_eq!(parser(YUML), Ok(("", ('a', ")"))));
-        assert_eq!(parser(""), Err(Err::Error(("", ErrorKind::NoneOf))));
-    }
-
-    #[test]
-    fn test_find_not_escaped_chars_2() {
-        use nom::error::ErrorKind;
-        use nom::Err;
-
         const YUML: &str = r#"(hello \(some\) world)"#;
-        let activity_end = map(pair(none_of("\\"), tag(")")), |(c, _)| c);
-        let activity = map(many_till(anychar, activity_end), |(mut v, c)| {
-            v.push(c);
-            v.iter().collect::<String>()
-        });
-        let mut activity = preceded(tag("("), activity);
-
-        assert_eq!(activity(YUML), Ok(("", "hello \\(some\\) world".to_string())));
-        assert_eq!(activity(""), Err(Err::Error(("", ErrorKind::Tag))));
+        let mut parser = preceded(tag("("), parse_until_end_of_activity);
+        assert_eq!(parser(YUML), Ok(("", "hello \\(some\\) world")));
     }
 
     #[test]
     fn parse_single_note_with_escaped_chars() {
         const YUML: &str = r#"(note: V1 \(vdest\): 99999{bg:cornsilk})"#;
-        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="filled" , fillcolor="cornsilk" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label=" V1 \(vdest\): 99999" , style="filled" , fillcolor="cornsilk" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 ,"#;
         validate(YUML, &[A1]);
     }
 
