@@ -128,9 +128,7 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_activity() {
-        let yuml = include_str!("../../test/activity.yuml");
+    fn parse(yuml: &str) {
         if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
             println!("{}", activity_file);
@@ -140,13 +138,20 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_activity() {
+        let yuml = include_str!("../../test/activity.yuml");
+        parse(yuml);
+    }
+
+    #[test]
+    fn test_parse_activity_2() {
+        let yuml = include_str!("../../test/activity_2.yuml");
+        parse(yuml);
+    }
+
+    #[test]
     fn test_parse_big_activity() {
         let yuml = include_str!("../../test/big_activity.yuml");
-        if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
-            assert!(rest.is_empty());
-            println!("{}", activity_file);
-        } else {
-            panic!("Invalid file");
-        }
+        parse(yuml);
     }
 }

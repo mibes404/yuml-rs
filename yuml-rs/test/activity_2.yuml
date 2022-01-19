@@ -1,0 +1,7 @@
+// {type:activity}
+// {generate:true}
+(start)-><a>[holiday]->(Holiday Announcement)->|d|->(end)
+<a>[open]-><b>[closed]->(Closed Announcement)->|d|
+<b>[open]->(Queue)-><c>[agent free]->(Route call)->(end)
+<c>[all busy]->(Wait Announcement)->(Wait 600s)-><c>
+<c>[loops > 6]->(Disconnect Announcement)->(end)
