@@ -4,6 +4,7 @@ use crate::model::{
     activity::{as_note, ArrowProps, Element, ElementProps},
     shared::{ElementDetails, LabeledElement, Relation},
 };
+use nom::combinator::rest;
 
 /*
 Syntax as specified in yuml.me
@@ -24,33 +25,31 @@ pub fn parse_activity<'a, 'o>(yuml: &'a str, options: &'o Options) -> IResult<&'
     let end_tag = map(tag("(end)"), |_s: &str| Element::EndTag);
     let note_string = take_until("}");
     let note_props = delimited(tag("{"), note_string, tag("}"));
-    let note = take_until("{");
-    let extract_attributes = map(tuple((note, opt(note_props))), as_note);
-    let alphanumeric_string = take_until(")");
-    let note = map_parser(
-        delimited(tag("(note:"), alphanumeric_string, tag(")")),
-        extract_attributes,
-    );
+    let note_text = alt((take_until("{"), rest));
+    let extract_attributes = map(tuple((note_text, opt(note_props))), as_note);
+    let extract_note = map_parser(preceded(tag("note:"), rest), extract_attributes);
     let alphanumeric_string = take_until(">");
     let decision = map(delimited(tag("<"), alphanumeric_string, tag(">")), |s| {
         Element::Decision(ElementProps::new(s))
     });
     let alphanumeric_string = take_until(")");
-    let activity = map(delimited(tag("("), alphanumeric_string, tag(")")), |s| {
-        Element::Activity(ElementProps::new(s))
-    });
+    let extract_activity = map(rest, |s| Element::Activity(ElementProps::new(s)));
+    let note_or_actvity = alt((extract_note, extract_activity));
+    let activity = map_parser(delimited(tag("("), alphanumeric_string, tag(")")), note_or_actvity);
     let alphanumeric_string = take_until("|");
     let parallel = map(delimited(tag("|"), alphanumeric_string, tag("|")), |s| {
         Element::Parallel(ElementProps::new(s))
     });
     let alphanumeric_string = take_until("->");
     let arrow_w_label = map(terminated(alphanumeric_string, tag("->")), |lbl| {
-        Element::Arrow(ArrowProps::new(Some(lbl), &options.dir))
+        Element::Arrow(ArrowProps::new(Some(lbl), &options.dir, true))
     });
-    let arrow_wo_label = map(tag("->"), |_| Element::Arrow(ArrowProps::new(None, &options.dir)));
-    let arrow = alt((arrow_wo_label, arrow_w_label));
+    let arrow_wo_label = map(tag("->"), |_| Element::Arrow(ArrowProps::new(None, &options.dir, true)));
+    let no_tail_arrow_wo_label = map(tag("-"), |_| Element::Arrow(ArrowProps::new(None, &options.dir, false)));
 
-    let parse_element = alt((start_tag, end_tag, decision, note, activity, parallel, arrow));
+    let arrow = alt((arrow_wo_label, arrow_w_label, no_tail_arrow_wo_label));
+
+    let parse_element = alt((start_tag, end_tag, decision, activity, parallel, arrow));
     let parse_line = many_till(parse_element, alt((eof, line_ending)));
     let mut parse_lines = many_till(parse_line, eof);
 
@@ -128,13 +127,96 @@ fn as_dots(elements: &[Element]) -> Vec<DotElement> {
 mod tests {
     use super::*;
 
-    fn parse(yuml: &str) {
-        if let (rest, ParsedYuml::Activity(activity_file)) = parse_yuml(yuml).expect("invalid file") {
+    fn parse(yuml: &str) -> DotFile {
+        if let (rest, ParsedYuml::Activity(dot_file)) = parse_yuml(yuml).expect("invalid file") {
             assert!(rest.is_empty());
-            println!("{}", activity_file);
+            println!("{dot_file}");
+            dot_file
         } else {
             panic!("Invalid file");
         }
+    }
+
+    const HEADER: &str = "// {type:activity}\n";
+    fn insert_header(yuml: &str) -> String {
+        format!("{HEADER}{yuml}")
+    }
+
+    fn contains_all(parts: &[&str], full: &str) -> bool {
+        for part in parts {
+            if !full.contains(part) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn validate(yuml: &str, parts: &[&str]) {
+        let yuml = insert_header(yuml);
+        let result = parse(&yuml).to_string();
+        assert!(contains_all(parts, &result));
+    }
+
+    #[test]
+    fn parse_single_activity() {
+        const YUML: &str = "(Hello)";
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="Hello" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        validate(YUML, &[A1]);
+    }
+
+    #[test]
+    fn parse_single_note() {
+        const YUML: &str = "(note:Hello)";
+        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        validate(YUML, &[A1]);
+    }
+
+    #[test]
+    fn parse_single_note_with_attr() {
+        const YUML: &str = "(note:Hello{bg:cornsilk})";
+        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="filled" , fillcolor="cornsilk" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        validate(YUML, &[A1]);
+    }
+
+    #[test]
+    fn parse_single_connection() {
+        const YUML: &str = "(a)-(b)";
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="a" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A2: &str = r#"A2 [shape="rectangle" , margin="0.20,0.05" , label="b" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const CON: &str = r#"A1 -> A2 [shape="edge" , label="" , style="solid" , dir="both" , arrowtail="none" , arrowhead="none" , labeldistance=1 , fontsize=10 , ]"#;
+        validate(YUML, &[A1, A2, CON]);
+    }
+
+    #[test]
+    fn parse_double_connection() {
+        const YUML: &str = "(a)-(b)-(c)";
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="a" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A2: &str = r#"A2 [shape="rectangle" , margin="0.20,0.05" , label="b" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A3: &str = r#"A3 [shape="rectangle" , margin="0.20,0.05" , label="c" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const CON: &str = r#"A1 -> A2 [shape="edge" , label="" , style="solid" , dir="both" , arrowtail="none" , arrowhead="none" , labeldistance=1 , fontsize=10 , ]"#;
+        const CON2: &str = r#"A2 -> A3 [shape="edge" , label="" , style="solid" , dir="both" , arrowtail="none" , arrowhead="none" , labeldistance=1 , fontsize=10 , ]"#;
+        validate(YUML, &[A1, A2, A3, CON, CON2]);
+    }
+
+    #[test]
+    fn parse_connection_with_note() {
+        const YUML: &str = "(a)-(note:Hello)-(b)";
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="a" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A2: &str = r#"A2 [shape="note" , margin="0.20,0.05" , label="Hello" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A3: &str = r#"A3 [shape="rectangle" , margin="0.20,0.05" , label="b" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const CON: &str = r#"A1 -> A2 [shape="edge" , label="" , style="solid" , dir="both" , arrowtail="none" , arrowhead="none" , labeldistance=1 , fontsize=10 , ]"#;
+        const CON2: &str = r#"A2 -> A3 [shape="edge" , label="" , style="solid" , dir="both" , arrowtail="none" , arrowhead="none" , labeldistance=1 , fontsize=10 , ]"#;
+        validate(YUML, &[A1, A2, A3, CON, CON2]);
+    }
+
+    #[test]
+    fn parse_single_arrow_connection() {
+        const YUML: &str = "(a)->(b)";
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="a" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const A2: &str = r#"A2 [shape="rectangle" , margin="0.20,0.05" , label="b" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        const CON: &str = r#"A1 -> A2 [shape="edge" , label="" , style="solid" , dir="both" , arrowtail="none" , arrowhead="vee" , labeldistance=1 , fontsize=10 , ]"#;
+        validate(YUML, &[A1, A2, CON]);
     }
 
     #[test]
@@ -146,6 +228,12 @@ mod tests {
     #[test]
     fn test_parse_activity_2() {
         let yuml = include_str!("../../test/activity_2.yuml");
+        parse(yuml);
+    }
+
+    #[test]
+    fn test_parse_activity_w_note() {
+        let yuml = include_str!("../../test/activity_w_note.yuml");
         parse(yuml);
     }
 

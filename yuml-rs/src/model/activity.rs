@@ -56,6 +56,7 @@ pub struct ArrowProps<'a> {
     pub target_connection_id: RefCell<u8>,
     pub dashed: RefCell<bool>,
     pub chart_direction: Directions,
+    pub has_tail: bool,
 }
 
 impl<'a> ElementProps<'a> {
@@ -68,12 +69,13 @@ impl<'a> ElementProps<'a> {
 }
 
 impl<'a> ArrowProps<'a> {
-    pub fn new(label: Option<&'a str>, chart_direction: &Directions) -> Self {
+    pub fn new(label: Option<&'a str>, chart_direction: &Directions, has_tail: bool) -> Self {
         Self {
             label,
             target_connection_id: RefCell::new(0),
             dashed: RefCell::new(false),
             chart_direction: *chart_direction,
+            has_tail,
         }
     }
 }
@@ -171,7 +173,7 @@ impl<'a> From<&Element<'a>> for Dot {
                 shape: DotShape::Edge,
                 style: vec![Style::Solid],
                 dir: Some("both".to_string()),
-                arrowhead: Some(Arrow::Vee),
+                arrowhead: if props.has_tail { Some(Arrow::Vee) } else { None },
                 fontsize: Some(10),
                 labeldistance: Some(1),
                 label: props.label.as_ref().map(|s| s.to_string()),
