@@ -188,16 +188,16 @@ mod tests {
     }
 
     #[test]
-    fn parse_single_activity() {
-        const YUML: &str = "(Hello)";
-        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="Hello" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+    fn parse_empty_activity() {
+        const YUML: &str = r#"()"#;
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
         validate(YUML, &[A1]);
     }
 
     #[test]
-    fn parse_single_note() {
-        const YUML: &str = "(note:Hello)";
-        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+    fn parse_single_activity() {
+        const YUML: &str = "(Hello)";
+        const A1: &str = r#"A1 [shape="rectangle" , margin="0.20,0.05" , label="Hello" , style="rounded" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
         validate(YUML, &[A1]);
     }
 
@@ -223,10 +223,10 @@ mod tests {
     }
 
     #[test]
-    fn test_find_escaped_chars() {
-        const YUML: &str = r#"(hello \(some\) world)"#;
-        let mut parser = preceded(tag("("), parse_until_end_of_activity);
-        assert_eq!(parser(YUML), Ok(("", "hello \\(some\\) world")));
+    fn parse_single_note() {
+        const YUML: &str = "(note:Hello)";
+        const A1: &str = r#"A1 [shape="note" , margin="0.20,0.05" , label="Hello" , style="" , arrowtail="none" , arrowhead="none" , height=0.5 , fontsize=10 , ]"#;
+        validate(YUML, &[A1]);
     }
 
     #[test]
